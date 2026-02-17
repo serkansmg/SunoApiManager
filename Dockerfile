@@ -20,8 +20,10 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install all deps except playwright (heavy + optional)
+# Also install websockets for uvicorn WebSocket support
 RUN pip install --no-cache-dir \
-    $(grep -v '^playwright' requirements.txt | tr '\n' ' ')
+    $(grep -v '^playwright' requirements.txt | tr '\n' ' ') \
+    websockets
 
 # ── Copy application code ───────────────────────────────────
 COPY app.py suno_api.py suno_models.py suno_router.py \
