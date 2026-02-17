@@ -53,8 +53,8 @@ Bulk music generation management tool powered by the Suno API. Upload songs from
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url> suno-manager
-cd suno-manager
+git clone https://github.com/serkansmg/SunoApiManager.git
+cd SunoApiManager
 ```
 
 ### 2. Quick Setup (recommended)
