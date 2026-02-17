@@ -114,7 +114,7 @@ class CaptchaSolver:
     async def _browser_solve(self) -> Optional[str]:
         """Open browser, navigate to suno.com/create, capture hCaptcha token."""
         try:
-            from playwright.async_api import async_playwright
+            from playwright.async_api import async_playwright  # type: ignore[import-not-found]
         except ImportError:
             raise RuntimeError(
                 "Playwright not installed. Run: pip install playwright && playwright install chromium"
@@ -122,7 +122,7 @@ class CaptchaSolver:
 
         logger.info("Launching browser for CAPTCHA solving...")
 
-        token_future: asyncio.Future = asyncio.get_event_loop().create_future()
+        token_future: asyncio.Future = asyncio.get_running_loop().create_future()
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -185,7 +185,7 @@ class CaptchaSolver:
                             if new_jwt and new_jwt != self.suno_client.token:
                                 self.suno_client.token = new_jwt
                                 self.suno_client._token_refreshed_at = (
-                                    asyncio.get_event_loop().time()
+                                    asyncio.get_running_loop().time()
                                 )
                                 logger.info("JWT also refreshed from browser session")
 

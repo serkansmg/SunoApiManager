@@ -33,7 +33,25 @@ git clone <repo-url> suno-manager
 cd suno-manager
 ```
 
-### 2a. Setup with Conda (recommended)
+### 2. Quick Setup (recommended)
+
+Run the one-click installer:
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+This will automatically:
+1. Install **Miniconda** if conda is not found (macOS & Linux)
+2. Create a conda environment `suno-manager` with Python 3.12
+3. Install **ffmpeg** via conda-forge
+4. Install Python dependencies from `requirements.txt`
+5. Install **Playwright + Chromium** (for CAPTCHA solving)
+6. Create a default `config.yaml` if missing
+7. Create required directories (`downloads/`, `uploads/`, `logs/`)
+
+### Alternative: Manual Setup with Conda
 
 ```bash
 # Create environment
@@ -49,7 +67,7 @@ conda install -c conda-forge ffmpeg -y
 # or: sudo apt install ffmpeg (Ubuntu/Debian)
 ```
 
-### 2b. Setup without Conda (venv)
+### Alternative: Manual Setup without Conda (venv)
 
 ```bash
 # Create virtual environment
@@ -64,12 +82,9 @@ pip install -r requirements.txt
 # macOS:  brew install ffmpeg
 # Ubuntu: sudo apt install ffmpeg
 # Windows: download from https://ffmpeg.org/download.html and add to PATH
-```
 
-### 3. Create required directories
-
-```bash
-mkdir -p downloads uploads logs static
+# Create required directories
+mkdir -p downloads uploads logs
 ```
 
 ## Configuration
@@ -148,6 +163,28 @@ AUTO_ANALYZE_SILENCE=true
 > If `config.yaml` exists, it takes priority.
 
 ## Running
+
+### Quick Start (recommended)
+
+```bash
+./start.sh
+```
+
+This will automatically:
+- Find and activate the `suno-manager` conda environment
+- Read the port from `config.yaml` (default: 8080)
+- Check if the port is already in use (offers to kill the existing process)
+- Start the server with hot-reload enabled
+
+**Options:**
+
+```bash
+./start.sh                # Start with defaults (port from config.yaml, hot-reload on)
+./start.sh --port 9090    # Override port
+./start.sh --no-reload    # Disable hot-reload (production)
+```
+
+### Manual Start
 
 ```bash
 # If using Conda:
@@ -249,10 +286,12 @@ suno-manager/
 ├── suno_router.py      # /suno/* FastAPI router (Swagger endpoints)
 ├── database.py         # SQLite operations (songs, generations, settings)
 ├── audio_analyzer.py   # Silence analysis (pydub + ffmpeg)
+├── captcha_solver.py   # CAPTCHA detection and browser-based solving
+├── install.sh          # One-click installer (Miniconda, conda env, dependencies)
+├── start.sh            # One-click launcher (conda activate + uvicorn)
 ├── config.yaml         # Main configuration file
 ├── requirements.txt    # Python dependencies
 ├── .env                # Environment variables (alternative config)
-├── captcha_solver.py   # CAPTCHA detection and browser-based solving
 ├── templates/          # Jinja2 HTML templates
 │   ├── base.html       # Base layout (navbar, toast, WebSocket client)
 │   ├── dashboard.html  # Dashboard + statistics
