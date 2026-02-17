@@ -5,6 +5,7 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-CDN-38B2AC?logo=tailwindcss&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![Docker](https://img.shields.io/badge/Docker-Hub-2496ED?logo=docker&logoColor=white)
 
 Bulk music generation management tool powered by the Suno API. Upload songs from Excel, generate in bulk, auto-download, and analyze silence.
 
@@ -110,6 +111,21 @@ pip install -r requirements.txt
 # Create required directories
 mkdir -p downloads uploads logs
 ```
+
+### Alternative: Docker
+
+```bash
+docker compose up -d
+```
+
+Or pull directly from Docker Hub:
+
+```bash
+docker pull smgteknik/sunoapimanager:latest
+docker compose up -d
+```
+
+> Requires a `config.yaml` in the project root. See [Configuration](#configuration) below.
 
 ## Configuration
 
@@ -310,6 +326,9 @@ suno-manager/
 ├── captcha_solver.py   # CAPTCHA detection and browser-based solving
 ├── install.sh          # One-click installer (Miniconda, conda env, dependencies)
 ├── start.sh            # One-click launcher (conda activate + uvicorn)
+├── Dockerfile          # Docker image definition
+├── docker-compose.yml  # Docker Compose configuration
+├── .dockerignore       # Docker build exclusions
 ├── config.yaml         # Main configuration file
 ├── requirements.txt    # Python dependencies
 ├── .env                # Environment variables (alternative config)

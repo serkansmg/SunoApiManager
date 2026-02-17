@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Data (mounted as volumes)
+downloads/
+uploads/
+logs/
+*.db
+
+# Config (mounted as volume)
+config.yaml
+.env
+
+# Documentation & screenshots
+docs/
+README.md
+API.md
+LICENSE
+
+# Shell scripts (not needed in container)
+install.sh
+start.sh
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Demo GIF (44MB — not needed in container)
+get-cookie-demo.gif
+static/get-cookie-demo.gif

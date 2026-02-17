@@ -1,0 +1,20 @@
+# ─────────────────────────────────────────────────────────────
+# Suno Manager — Docker Compose
+# ─────────────────────────────────────────────────────────────
+
+services:
+  suno-manager:
+    image: smgteknik/sunoapimanager:latest
+    build: .
+    container_name: suno-manager
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./downloads:/app/downloads
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./suno_manager.db:/app/suno_manager.db
+    environment:
+      - TZ=Europe/Istanbul
