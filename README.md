@@ -1,8 +1,32 @@
 # Suno Manager
 
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-CDN-38B2AC?logo=tailwindcss&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 Bulk music generation management tool powered by the Suno API. Upload songs from Excel, generate in bulk, auto-download, and analyze silence.
 
 **Single service** — no Node.js proxy needed. Connects directly to the Suno API from Python (Clerk JWT auth).
+
+## Screenshots
+
+| Dashboard | Songs |
+|:-:|:-:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Songs](docs/screenshots/songs.png) |
+
+| Song Detail (Waveform) | Upload |
+|:-:|:-:|
+| ![Song Detail](docs/screenshots/songs_expanded.png) | ![Upload](docs/screenshots/upload.png) |
+
+| Settings | Cookie Helper |
+|:-:|:-:|
+| ![Settings](docs/screenshots/settings.png) | ![Cookie Helper](docs/screenshots/settings_cookie_howto.png) |
+
+| Cookie Demo |
+|:-:|
+| ![Cookie Demo](docs/screenshots/settings_cookie_demo.png) |
 
 ## Features
 
@@ -299,6 +323,7 @@ suno-manager/
 │   └── upload.html     # Excel upload
 ├── static/             # Static files
 │   └── sample_songs.xlsx  # Sample Excel template
+├── docs/screenshots/   # README screenshots
 ├── downloads/          # Downloaded audio files
 ├── uploads/            # Uploaded Excel files
 ├── logs/               # Application logs
