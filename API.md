@@ -514,6 +514,101 @@ Update the cookie and restart the API client.
 
 ---
 
+### Suno History
+
+#### GET `/api/suno-history`
+
+Fetch clips from your Suno library (paginated).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `page` | int | Page number (0-based, default 0) |
+
+```json
+// Response
+{
+  "clips": [
+    {
+      "id": "abc123...",
+      "title": "My Song",
+      "audio_url": "https://cdn1.suno.ai/...",
+      "image_url": "https://cdn2.suno.ai/...",
+      "image_large_url": "https://cdn2.suno.ai/...",
+      "status": "complete",
+      "duration": 245.6,
+      "model_name": "chirp-crow",
+      "tags": "pop, rock",
+      "prompt": "[Verse]\n...",
+      "lyric": "Full lyrics...",
+      "play_count": 42,
+      "upvote_count": 5,
+      "is_public": false,
+      "is_liked": true,
+      "created_at": "2026-02-17T..."
+    }
+  ],
+  "total": 150,
+  "page": 0,
+  "has_more": true
+}
+```
+
+#### POST `/api/download-from-history`
+
+Download a single clip from Suno history. Creates a DB record if the clip doesn't exist locally.
+
+```json
+// Request
+{ "suno_id": "abc123..." }
+
+// Response
+{ "message": "Download started for: My Song" }
+```
+
+#### POST `/api/download-from-history/batch`
+
+Batch download multiple clips from Suno history. All downloads run sequentially in a single background task (rate-limit safe).
+
+```json
+// Request
+{ "suno_ids": ["abc123...", "def456...", "ghi789..."] }
+
+// Response
+{
+  "message": "Batch download started (3 clips)",
+  "count": 3,
+  "skipped": 0
+}
+```
+
+---
+
+### CAPTCHA
+
+#### GET `/api/captcha/status`
+
+Check if CAPTCHA verification is required.
+
+```json
+// Response
+{
+  "required": false,
+  "has_valid_token": true,
+  "is_solving": false
+}
+```
+
+#### POST `/api/captcha/solve`
+
+Start the CAPTCHA solver. Opens a browser window for the user to solve the challenge. Result is sent via WebSocket `captcha_update` event.
+
+```json
+// Response
+{ "message": "CAPTCHA solver started" }
+```
+
+---
+
 ### AJAX Helper
 
 #### GET `/api/song-row/{song_id}?index=0`
@@ -584,6 +679,23 @@ Song generation status change.
   "song_id": 42,
   "status": "error",
   "error": "Rate limit exceeded"
+}
+```
+
+#### `captcha_update`
+CAPTCHA solver status change.
+```json
+{
+  "event": "captcha_update",
+  "status": "solved",
+  "message": "CAPTCHA solved successfully"
+}
+```
+```json
+{
+  "event": "captcha_update",
+  "status": "failed",
+  "message": "CAPTCHA solving failed"
 }
 ```
 

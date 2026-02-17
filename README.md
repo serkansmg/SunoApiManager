@@ -7,11 +7,14 @@ Bulk music generation management tool powered by the Suno API. Upload songs from
 ## Features
 
 - Bulk song upload from Excel/CSV (title, lyrics, tags, model)
-- Automatic song generation and status tracking
+- Automatic song generation with batch processing (configurable batch size & delay)
 - MP3 / WAV download (WAV requires Suno Pro)
 - Silence detection and analysis (pydub + ffmpeg)
 - Waveform visualizer with silence region highlighting
 - Real-time progress tracking via WebSocket
+- **Suno History browser** — browse your entire Suno library with pagination, detail panels, mini audio player with seek, and batch download
+- **CAPTCHA solver** — automatic detection and browser-based solving
+- **Cookie helper** — step-by-step guide with animated demo in Settings
 - Swagger UI (`/docs`) with all Suno API endpoints
 - Dynamic model list (automatically loaded from your Suno account)
 
@@ -207,11 +210,16 @@ See [API.md](API.md) for the complete API reference.
 |----------|--------|-------------|
 | `/` | GET | Dashboard |
 | `/songs` | GET | Song list |
+| `/history` | GET | Suno History browser |
 | `/settings` | GET | Settings |
 | `/upload` | GET | Excel upload |
 | `/api/start-generation` | POST | Start generation |
 | `/api/poll-status` | POST | Update statuses |
 | `/api/download-completed` | POST | Download completed songs |
+| `/api/suno-history` | GET | Fetch Suno library (paginated) |
+| `/api/download-from-history/batch` | POST | Batch download from history |
+| `/api/captcha/status` | GET | Check CAPTCHA status |
+| `/api/captcha/solve` | POST | Start CAPTCHA solver |
 | `/ws` | WebSocket | Real-time updates |
 
 ### Suno API Endpoints (`/suno/...`)
@@ -244,12 +252,14 @@ suno-manager/
 ├── config.yaml         # Main configuration file
 ├── requirements.txt    # Python dependencies
 ├── .env                # Environment variables (alternative config)
+├── captcha_solver.py   # CAPTCHA detection and browser-based solving
 ├── templates/          # Jinja2 HTML templates
 │   ├── base.html       # Base layout (navbar, toast, WebSocket client)
 │   ├── dashboard.html  # Dashboard + statistics
 │   ├── songs.html      # Song list + waveform + download
 │   ├── _song_row.html  # Single song row (for AJAX refresh)
-│   ├── settings.html   # Settings page
+│   ├── history.html    # Suno History browser + mini player
+│   ├── settings.html   # Settings page + cookie helper
 │   └── upload.html     # Excel upload
 ├── static/             # Static files
 │   └── sample_songs.xlsx  # Sample Excel template
