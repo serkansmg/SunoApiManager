@@ -47,7 +47,7 @@ services:
       - ./downloads:/app/downloads
       - ./uploads:/app/uploads
       - ./logs:/app/logs
-      - ./suno_manager.db:/app/suno_manager.db
+      - ./data:/app/data
     environment:
       - TZ=Europe/Istanbul
 ```
@@ -64,11 +64,11 @@ Open in your browser: **http://localhost:8080**
 
 | Mount | Description |
 |-------|-------------|
-| `./config.yaml` | Main configuration file (read-only) |
+| `./config.yaml` | Main configuration file |
 | `./downloads` | Downloaded audio files (MP3/WAV) |
 | `./uploads` | Uploaded Excel files |
 | `./logs` | Application logs |
-| `./suno_manager.db` | SQLite database (songs, generations, settings) |
+| `./data` | SQLite database (auto-created) |
 
 ## Ports
 

@@ -15,6 +15,6 @@ services:
       - ./downloads:/app/downloads
       - ./uploads:/app/uploads
       - ./logs:/app/logs
-      - ./suno_manager.db:/app/suno_manager.db
+      - ./data:/app/data
     environment:
       - TZ=Europe/Istanbul

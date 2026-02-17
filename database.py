@@ -8,7 +8,10 @@ import os
 from datetime import datetime
 from contextlib import contextmanager
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "suno_manager.db")
+DB_PATH = os.environ.get(
+    "SUNO_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "suno_manager.db"),
+)
 
 
 @contextmanager

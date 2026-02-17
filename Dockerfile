@@ -32,7 +32,10 @@ COPY templates/ ./templates/
 COPY static/ ./static/
 
 # ── Create data directories ─────────────────────────────────
-RUN mkdir -p downloads uploads logs
+RUN mkdir -p downloads uploads logs data
+
+# ── Set DB path to data directory (mountable volume) ────────
+ENV SUNO_DB_PATH=/app/data/suno_manager.db
 
 # ── Expose port and health check ────────────────────────────
 EXPOSE 8080
