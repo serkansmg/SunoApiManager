@@ -1,0 +1,683 @@
+{% extends "base.html" %}
+{% block title %}Suno History - Suno Manager{% endblock %}
+
+{% block content %}
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+    <div>
+        <h2 class="text-3xl font-bold text-white mb-2">Suno History</h2>
+        <p class="text-slate-400">Browse your Suno library. Download any clip with full metadata.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <span id="total-badge" class="text-sm text-slate-400"></span>
+        <button onclick="downloadSelected()" id="download-selected-btn" class="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium shadow-lg shadow-primary/25 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <span class="material-icons text-lg">download</span>
+            <span id="download-btn-text">Download Selected</span>
+        </button>
+    </div>
+</div>
+
+<!-- Initial Loading State -->
+<div id="loading-state" class="flex items-center justify-center py-24">
+    <div class="text-center">
+        <span class="material-icons text-5xl text-primary animate-spin mb-4 block">sync</span>
+        <p class="text-slate-400">Loading your Suno library...</p>
+    </div>
+</div>
+
+<!-- Table Container -->
+<div id="history-table" class="hidden bg-surface-dark border border-white/5 rounded-2xl shadow-xl overflow-hidden">
+    <div class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-white/5">
+        <div class="col-span-1 text-center">
+            <input type="checkbox" id="select-all" class="w-4 h-4 rounded border-white/20 bg-transparent cursor-pointer accent-primary" onchange="toggleSelectAll(this.checked)"/>
+        </div>
+        <div class="col-span-3">Title & Tags</div>
+        <div class="col-span-2">Status</div>
+        <div class="col-span-1">Duration</div>
+        <div class="col-span-1">Model</div>
+        <div class="col-span-2">Created</div>
+        <div class="col-span-2 text-right">Actions</div>
+    </div>
+    <div id="clips-container"></div>
+</div>
+
+<!-- Empty State -->
+<div id="empty-state" class="hidden py-24 text-center">
+    <span class="material-icons text-5xl text-slate-600 mb-3 block">cloud_off</span>
+    <p class="text-lg font-medium text-slate-400">No clips found on Suno</p>
+    <p class="text-sm text-slate-500 mt-1">Make sure your cookie is configured correctly.</p>
+</div>
+
+<!-- Pagination Bar -->
+<div id="pagination-bar" class="hidden flex items-center justify-center gap-3 mt-6"></div>
+
+<!-- Sticky Mini Player -->
+<div id="mini-player" class="hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-dark/95 backdrop-blur-xl border-t border-white/10 shadow-2xl">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center gap-4">
+        <!-- Cover + Info -->
+        <img id="mp-cover" class="w-12 h-12 rounded-lg object-cover bg-white/10 flex-shrink-0" src="" alt=""/>
+        <div class="min-w-0 flex-shrink-0 w-40">
+            <div id="mp-title" class="text-sm font-bold text-white truncate"></div>
+            <div id="mp-artist" class="text-xs text-slate-400 truncate"></div>
+        </div>
+        <!-- Controls -->
+        <button id="mp-play-btn" onclick="mpToggle()" class="p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors flex-shrink-0">
+            <span class="material-icons text-xl" id="mp-play-icon">play_arrow</span>
+        </button>
+        <!-- Progress -->
+        <div class="flex-1 flex items-center gap-3">
+            <span id="mp-current" class="text-xs text-slate-400 font-mono w-10 text-right flex-shrink-0">0:00</span>
+            <div id="mp-progress-bar" class="flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer relative group" onclick="mpSeek(event)">
+                <div id="mp-progress-fill" class="h-full bg-primary rounded-full transition-none relative">
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+            </div>
+            <span id="mp-duration" class="text-xs text-slate-400 font-mono w-10 flex-shrink-0">--:--</span>
+        </div>
+        <!-- Close -->
+        <button onclick="mpClose()" class="p-1.5 rounded-full text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-colors flex-shrink-0">
+            <span class="material-icons text-lg">close</span>
+        </button>
+    </div>
+</div>
+
+<!-- Hidden Audio Element -->
+<audio id="history-player" class="hidden" preload="none"></audio>
+
+<!-- ═══ ROW TEMPLATE ═══ -->
+<template id="tpl-row">
+    <div class="group border-b border-white/5 hover:bg-surface-hover transition-colors history-row">
+        <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer" data-action="toggle-detail">
+            <div class="col-span-1 text-center">
+                <input type="checkbox" class="row-cb w-4 h-4 rounded border-white/20 bg-transparent cursor-pointer accent-primary"/>
+            </div>
+            <div class="col-span-3 flex items-center gap-3">
+                <div class="row-thumb h-10 w-10 rounded-lg bg-white/10 overflow-hidden flex-shrink-0">
+                    <img class="row-thumb-img w-full h-full object-cover hidden" alt=""/>
+                </div>
+                <div class="row-thumb-placeholder h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 hidden"></div>
+                <div class="min-w-0">
+                    <div class="row-title font-bold text-white truncate"></div>
+                    <div class="row-tags flex gap-1 mt-1 flex-wrap"></div>
+                </div>
+            </div>
+            <div class="col-span-2 flex items-center gap-2 row-status-col"></div>
+            <div class="col-span-1 text-sm font-medium row-duration text-slate-300"></div>
+            <div class="col-span-1 text-xs text-slate-400 truncate row-model"></div>
+            <div class="col-span-2 text-xs text-slate-400 row-date"></div>
+            <div class="col-span-2 flex items-center justify-end gap-1 row-actions"></div>
+        </div>
+        <!-- Expandable Detail -->
+        <div class="row-detail hidden px-6 pb-6">
+            <div class="bg-background-dark/50 rounded-xl p-6 border border-white/5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-1 lg:border-r border-white/5 lg:pr-6">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Lyrics / Prompt</h3>
+                    <div class="detail-lyrics text-xs text-slate-300 leading-relaxed max-h-48 overflow-y-auto custom-scrollbar pr-2 font-mono whitespace-pre-wrap"></div>
+                    <div class="detail-gpt-section hidden mt-4">
+                        <div class="text-[10px] text-slate-500 uppercase font-semibold mb-1">GPT Description Prompt</div>
+                        <div class="detail-gpt text-xs text-slate-400 italic"></div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2">
+                    <div class="detail-cover-row flex gap-4 mb-4">
+                        <img class="detail-cover w-24 h-24 rounded-xl object-cover bg-white/10 flex-shrink-0 hidden" alt=""/>
+                        <div class="flex flex-col justify-center gap-1">
+                            <div class="detail-title text-sm font-bold text-white"></div>
+                            <div class="detail-model-dur text-xs text-slate-400"></div>
+                            <div class="detail-full-date text-xs text-slate-500"></div>
+                            <div class="detail-stats flex items-center gap-3 mt-1 hidden"></div>
+                        </div>
+                    </div>
+                    <div class="detail-meta grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5"></div>
+                    <div class="detail-tags-section hidden mt-4 pt-4 border-t border-white/5">
+                        <div class="text-[10px] text-slate-500 uppercase font-semibold mb-2">Tags</div>
+                        <div class="detail-all-tags flex gap-1 flex-wrap"></div>
+                    </div>
+                    <div class="detail-neg-section hidden mt-3">
+                        <div class="text-[10px] text-slate-500 uppercase font-semibold mb-2">Negative Tags</div>
+                        <div class="detail-neg-tags flex gap-1 flex-wrap"></div>
+                    </div>
+                    <div class="detail-badges mt-4 pt-4 border-t border-white/5 flex items-center gap-3 flex-wrap"></div>
+                    <div class="detail-error hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ─── State ─── */
+var currentPage = 0, hasMore = true, isLoading = false;
+var selectedIds = new Set(), currentlyPlaying = null, clipsCache = {};
+var totalOnSuno = 0;
+
+/* ─── Utilities ─── */
+function fmtDur(s) { if (!s || isNaN(s)) return '--:--'; return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0'); }
+function fmtDate(d) { if (!d) return '-'; var t=(Date.now()-new Date(d))/1e3; if(t<60) return 'just now'; if(t<3600) return Math.floor(t/60)+'m ago'; if(t<86400) return Math.floor(t/3600)+'h ago'; if(t<2592e3) return Math.floor(t/86400)+'d ago'; return new Date(d).toLocaleDateString(); }
+function fmtFullDate(d) { return d ? new Date(d).toLocaleString() : '-'; }
+
+function makeTag(text, cls) {
+    var s = document.createElement('span');
+    s.className = cls;
+    s.textContent = text.trim();
+    return s;
+}
+function makeMeta(label, value) {
+    var cell = document.createElement('div');
+    var l = document.createElement('div');
+    l.className = 'text-[10px] text-slate-500 uppercase font-semibold mb-1';
+    l.textContent = label;
+    cell.appendChild(l);
+    var v = document.createElement('div');
+    v.className = 'text-xs font-mono text-slate-300 bg-white/5 px-1.5 py-0.5 rounded inline-block truncate max-w-full';
+    v.textContent = value || '-';
+    v.title = value || '';
+    cell.appendChild(v);
+    return cell;
+}
+function makeIconBtn(icon, title, cls, onClick) {
+    var btn = document.createElement('button');
+    btn.className = 'p-1.5 rounded-full transition-colors ' + cls;
+    btn.title = title;
+    btn.onclick = onClick;
+    var ico = document.createElement('span');
+    ico.className = 'material-icons text-lg';
+    ico.textContent = icon;
+    btn.appendChild(ico);
+    return btn;
+}
+function makeStatBadge(icon, text) {
+    var s = document.createElement('span');
+    s.className = 'text-[10px] text-slate-500 flex items-center gap-1';
+    var i = document.createElement('span');
+    i.className = 'material-icons text-[10px]';
+    i.textContent = icon;
+    s.appendChild(i);
+    s.appendChild(document.createTextNode(text));
+    return s;
+}
+
+/* ─── Template-based Row Builder ─── */
+var tplRow = document.getElementById('tpl-row');
+
+function buildRow(clip) {
+    var frag = tplRow.content.cloneNode(true);
+    var row = frag.querySelector('.history-row');
+    row.dataset.sunoId = clip.id;
+    if (selectedIds.has(clip.id)) row.classList.add('bg-primary/5');
+
+    var grid = row.querySelector('[data-action="toggle-detail"]');
+    grid.onclick = function() { toggleDetail(row); };
+
+    // Checkbox
+    var cb = row.querySelector('.row-cb');
+    cb.checked = selectedIds.has(clip.id);
+    cb.onclick = function(e) { e.stopPropagation(); };
+    cb.onchange = function() { toggleSelect(clip.id); };
+
+    // Thumbnail
+    if (clip.image_url) {
+        row.querySelector('.row-thumb').classList.remove('hidden');
+        var img = row.querySelector('.row-thumb-img');
+        img.src = clip.image_url; img.alt = clip.title || ''; img.classList.remove('hidden');
+    } else {
+        row.querySelector('.row-thumb').classList.add('hidden');
+        var ph = row.querySelector('.row-thumb-placeholder');
+        ph.textContent = (clip.title || '?')[0].toUpperCase(); ph.classList.remove('hidden');
+    }
+
+    // Title
+    row.querySelector('.row-title').textContent = clip.title || 'Untitled';
+
+    // Tags (max 3)
+    var tagsEl = row.querySelector('.row-tags');
+    if (clip.tags) {
+        var arr = clip.tags.split(',');
+        arr.slice(0, 3).forEach(function(t) {
+            tagsEl.appendChild(makeTag(t, 'px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium border border-primary/20'));
+        });
+        if (arr.length > 3) tagsEl.appendChild(makeTag('+' + (arr.length - 3), 'px-2 py-0.5 rounded-full bg-white/5 text-slate-500 text-[10px] font-medium'));
+    }
+
+    // Status
+    var statusCol = row.querySelector('.row-status-col');
+    var badge = document.createElement('span');
+    if (clip.status === 'complete') {
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-medium border border-green-500/20';
+        var dot = document.createElement('span'); dot.className = 'w-1.5 h-1.5 rounded-full bg-green-500';
+        badge.appendChild(dot); badge.appendChild(document.createTextNode('Complete'));
+    } else if (clip.status === 'error') {
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-medium border border-red-500/20';
+        badge.textContent = 'Error';
+    } else if (['submitted','streaming','queue'].indexOf(clip.status) >= 0) {
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium border border-yellow-500/20';
+        var p = document.createElement('span'); p.className = 'w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse';
+        badge.appendChild(p); badge.appendChild(document.createTextNode('Processing'));
+    } else {
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-400 text-xs font-medium border border-slate-500/20';
+        badge.textContent = clip.status || 'unknown';
+    }
+    statusCol.appendChild(badge);
+    if (clip.in_local_db) {
+        var lb = document.createElement('span');
+        lb.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold ' + (clip.local_downloaded ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20');
+        lb.textContent = clip.local_downloaded ? 'DL' : 'DB';
+        lb.title = clip.local_downloaded ? 'Already downloaded' : 'In local database';
+        statusCol.appendChild(lb);
+    }
+
+    // Duration
+    var durEl = row.querySelector('.row-duration');
+    var isShort = clip.duration && clip.duration > 0 && clip.duration < 180;
+    durEl.textContent = fmtDur(clip.duration);
+    if (isShort) { durEl.classList.add('text-orange-400'); durEl.classList.remove('text-slate-300'); }
+
+    // Model & Date
+    var mEl = row.querySelector('.row-model'); mEl.textContent = clip.model_name || '-'; mEl.title = clip.model_name || '';
+    var dEl = row.querySelector('.row-date'); dEl.textContent = fmtDate(clip.created_at); dEl.title = clip.created_at || '';
+
+    // Actions
+    var act = row.querySelector('.row-actions');
+    if (clip.audio_url) {
+        var pb = makeIconBtn('play_arrow', 'Play', 'text-slate-400 hover:text-primary hover:bg-primary/10', function(e) { e.stopPropagation(); togglePlay(clip.audio_url, clip.id); });
+        pb.querySelector('.material-icons').id = 'play-icon-' + clip.id;
+        act.appendChild(pb);
+    }
+    if (clip.local_downloaded) {
+        var done = document.createElement('span'); done.className = 'p-1.5 text-green-500'; done.title = 'Downloaded';
+        var di = document.createElement('span'); di.className = 'material-icons text-lg'; di.textContent = 'download_done';
+        done.appendChild(di); act.appendChild(done);
+    } else {
+        act.appendChild(makeIconBtn('download', 'Download', 'text-slate-400 hover:text-primary hover:bg-primary/10', function(e) { e.stopPropagation(); downloadClip(clip.id); }));
+    }
+    var link = document.createElement('a');
+    link.className = 'p-1.5 rounded-full text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors';
+    link.href = 'https://suno.com/song/' + clip.id; link.target = '_blank'; link.rel = 'noopener'; link.title = 'Open on Suno';
+    link.onclick = function(e) { e.stopPropagation(); };
+    var li = document.createElement('span'); li.className = 'material-icons text-lg'; li.textContent = 'open_in_new';
+    link.appendChild(li); act.appendChild(link);
+    act.appendChild(makeIconBtn('info', 'Details', 'text-slate-400 hover:text-primary hover:bg-primary/10 info-btn', function(e) { e.stopPropagation(); toggleDetail(row); }));
+
+    // Fill detail
+    fillDetail(row, clip);
+    return frag;
+}
+
+function fillDetail(row, clip) {
+    row.querySelector('.detail-lyrics').textContent = clip.lyric || clip.prompt || '(no lyrics)';
+    if (clip.gpt_description_prompt) {
+        row.querySelector('.detail-gpt-section').classList.remove('hidden');
+        row.querySelector('.detail-gpt').textContent = clip.gpt_description_prompt;
+    }
+    var coverImg = row.querySelector('.detail-cover');
+    var imgSrc = clip.image_large_url || clip.image_url;
+    if (imgSrc) { coverImg.src = imgSrc; coverImg.alt = clip.title || ''; coverImg.classList.remove('hidden'); }
+    row.querySelector('.detail-title').textContent = clip.title || 'Untitled';
+    row.querySelector('.detail-model-dur').textContent = (clip.model_name || 'unknown') + ' \u00B7 ' + fmtDur(clip.duration);
+    row.querySelector('.detail-full-date').textContent = fmtFullDate(clip.created_at);
+    if (clip.play_count || clip.upvote_count) {
+        var stats = row.querySelector('.detail-stats'); stats.classList.remove('hidden');
+        if (clip.play_count) stats.appendChild(makeStatBadge('play_arrow', clip.play_count.toLocaleString()));
+        if (clip.upvote_count) stats.appendChild(makeStatBadge('thumb_up', clip.upvote_count.toLocaleString()));
+    }
+    var meta = row.querySelector('.detail-meta');
+    meta.appendChild(makeMeta('Suno ID', clip.id));
+    meta.appendChild(makeMeta('Duration', clip.duration ? fmtDur(clip.duration) + ' (' + Math.round(clip.duration) + 's)' : '-'));
+    meta.appendChild(makeMeta('Model', clip.model_name));
+    meta.appendChild(makeMeta('Type', clip.type || '-'));
+    if (clip.tags) {
+        row.querySelector('.detail-tags-section').classList.remove('hidden');
+        var tw = row.querySelector('.detail-all-tags');
+        clip.tags.split(',').forEach(function(t) { tw.appendChild(makeTag(t, 'px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium border border-primary/20')); });
+    }
+    if (clip.negative_tags) {
+        row.querySelector('.detail-neg-section').classList.remove('hidden');
+        var nw = row.querySelector('.detail-neg-tags');
+        clip.negative_tags.split(',').forEach(function(t) { nw.appendChild(makeTag(t, 'px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-medium border border-red-500/20')); });
+    }
+    var badges = row.querySelector('.detail-badges');
+    var pub = document.createElement('span');
+    pub.className = clip.is_public ? 'px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-medium border border-green-500/20' : 'px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 text-[10px] font-medium border border-slate-500/20';
+    pub.textContent = clip.is_public ? 'Public' : 'Private';
+    badges.appendChild(pub);
+    if (clip.is_liked) {
+        var lk = document.createElement('span');
+        lk.className = 'px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-400 text-[10px] font-medium border border-pink-500/20 flex items-center gap-1';
+        var h = document.createElement('span'); h.className = 'material-icons text-[10px]'; h.textContent = 'favorite';
+        lk.appendChild(h); lk.appendChild(document.createTextNode('Liked'));
+        badges.appendChild(lk);
+    }
+    if (clip.in_local_db) {
+        var lb = document.createElement('span');
+        lb.className = clip.local_downloaded ? 'px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-medium border border-green-500/20' : 'px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-medium border border-blue-500/20';
+        lb.textContent = clip.local_downloaded ? 'Downloaded' : 'In Local DB';
+        badges.appendChild(lb);
+    }
+    if (clip.error_message) {
+        var err = row.querySelector('.detail-error'); err.classList.remove('hidden');
+        err.textContent = 'Error: ' + clip.error_message;
+    }
+}
+
+/* ─── Detail Toggle ─── */
+function toggleDetail(row) {
+    var detail = row.querySelector('.row-detail');
+    if (!detail) return;
+    detail.classList.toggle('hidden');
+    var btn = row.querySelector('.info-btn');
+    if (btn) {
+        var ico = btn.querySelector('.material-icons');
+        ico.textContent = detail.classList.contains('hidden') ? 'info' : 'expand_less';
+    }
+}
+
+/* ─── Page Loading ─── */
+async function loadPage(page) {
+    if (isLoading) return;
+    isLoading = true;
+    currentPage = page;
+
+    document.getElementById('loading-state').classList.remove('hidden');
+    document.getElementById('history-table').classList.add('hidden');
+    document.getElementById('empty-state').classList.add('hidden');
+    document.getElementById('pagination-bar').classList.add('hidden');
+
+    try {
+        var resp = await fetch('/api/suno-history?page=' + page);
+        var data = await resp.json();
+
+        if (!data.clips || data.clips.length === 0) {
+            document.getElementById('loading-state').classList.add('hidden');
+            if (page === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+            } else {
+                hasMore = false;
+                showToast('No more clips', 'info');
+            }
+            isLoading = false;
+            return;
+        }
+
+        totalOnSuno = data.total || totalOnSuno;
+        hasMore = data.has_more;
+
+        // Cache clips
+        data.clips.forEach(function(c) { clipsCache[c.id] = c; });
+
+        // Replace container contents
+        var container = document.getElementById('clips-container');
+        container.textContent = '';
+        data.clips.forEach(function(clip) { container.appendChild(buildRow(clip)); });
+
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('history-table').classList.remove('hidden');
+
+        // Update header badge
+        if (totalOnSuno > 0) {
+            document.getElementById('total-badge').textContent = totalOnSuno + ' clips on Suno';
+        }
+
+        renderPagination(page);
+    } catch (e) {
+        document.getElementById('loading-state').classList.add('hidden');
+        showToast('Failed to load history: ' + e.message, 'error');
+    }
+    isLoading = false;
+}
+
+/* ─── Pagination ─── */
+function renderPagination(page) {
+    var bar = document.getElementById('pagination-bar');
+    bar.textContent = '';
+    bar.classList.remove('hidden');
+
+    var perPage = 20;
+    var estPages = totalOnSuno > 0 ? Math.ceil(totalOnSuno / perPage) : null;
+
+    // Prev button
+    var prevBtn = document.createElement('button');
+    prevBtn.className = 'p-2.5 rounded-lg border transition-colors flex items-center ' +
+        (page > 0 ? 'border-white/10 text-slate-300 hover:bg-white/5 cursor-pointer' : 'border-white/5 text-slate-600 cursor-not-allowed');
+    prevBtn.disabled = page === 0;
+    prevBtn.onclick = function() { if (page > 0) { loadPage(page - 1); window.scrollTo({top: 0, behavior: 'smooth'}); } };
+    var prevIco = document.createElement('span');
+    prevIco.className = 'material-icons text-xl';
+    prevIco.textContent = 'chevron_left';
+    prevBtn.appendChild(prevIco);
+    bar.appendChild(prevBtn);
+
+    // Editable page number input
+    var pageInfo = document.createElement('div');
+    pageInfo.className = 'flex items-center gap-2';
+
+    var pageInput = document.createElement('input');
+    pageInput.type = 'number';
+    pageInput.min = '1';
+    if (estPages) pageInput.max = String(estPages);
+    pageInput.value = String(page + 1);
+    pageInput.className = 'w-14 px-2 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded-lg text-sm font-bold text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+    pageInput.onkeydown = function(e) {
+        if (e.key === 'Enter') {
+            var targetPage = parseInt(pageInput.value, 10) - 1;
+            if (isNaN(targetPage) || targetPage < 0) targetPage = 0;
+            if (estPages && targetPage >= estPages) targetPage = estPages - 1;
+            loadPage(targetPage);
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+    };
+    // Select all text on focus for easy editing
+    pageInput.onfocus = function() { pageInput.select(); };
+    pageInfo.appendChild(pageInput);
+
+    if (estPages) {
+        var ofText = document.createElement('span');
+        ofText.className = 'text-xs text-slate-500';
+        ofText.textContent = '/ ' + estPages;
+        pageInfo.appendChild(ofText);
+    }
+
+    bar.appendChild(pageInfo);
+
+    // Next button
+    var nextBtn = document.createElement('button');
+    nextBtn.className = 'p-2.5 rounded-lg border transition-colors flex items-center ' +
+        (hasMore ? 'border-white/10 text-slate-300 hover:bg-white/5 cursor-pointer' : 'border-white/5 text-slate-600 cursor-not-allowed');
+    nextBtn.disabled = !hasMore;
+    nextBtn.onclick = function() { if (hasMore) { loadPage(page + 1); window.scrollTo({top: 0, behavior: 'smooth'}); } };
+    var nextIco = document.createElement('span');
+    nextIco.className = 'material-icons text-xl';
+    nextIco.textContent = 'chevron_right';
+    nextBtn.appendChild(nextIco);
+    bar.appendChild(nextBtn);
+
+    // Total info
+    if (totalOnSuno > 0) {
+        var totalInfo = document.createElement('span');
+        totalInfo.className = 'text-xs text-slate-500 ml-3';
+        totalInfo.textContent = '(' + totalOnSuno + ' clips)';
+        bar.appendChild(totalInfo);
+    }
+}
+
+/* ─── Selection ─── */
+function toggleSelect(sunoId) {
+    selectedIds.has(sunoId) ? selectedIds.delete(sunoId) : selectedIds.add(sunoId);
+    updateSelectionUI();
+}
+function toggleSelectAll(checked) {
+    document.querySelectorAll('.history-row').forEach(function(row) {
+        checked ? selectedIds.add(row.dataset.sunoId) : selectedIds.delete(row.dataset.sunoId);
+    });
+    updateSelectionUI();
+}
+function updateSelectionUI() {
+    var btn = document.getElementById('download-selected-btn');
+    var btnText = document.getElementById('download-btn-text');
+    btn.disabled = selectedIds.size === 0;
+    btnText.textContent = selectedIds.size > 0 ? 'Download ' + selectedIds.size + ' Selected' : 'Download Selected';
+    document.querySelectorAll('.history-row').forEach(function(row) {
+        var sel = selectedIds.has(row.dataset.sunoId);
+        row.classList.toggle('bg-primary/5', sel);
+        var cb = row.querySelector('.row-cb'); if (cb) cb.checked = sel;
+    });
+}
+
+/* ─── Mini Player ─── */
+var mpPlayer = document.getElementById('history-player');
+var mpAnimFrame = null;
+
+function togglePlay(url, clipId) {
+    // If same clip is playing, toggle pause
+    if (currentlyPlaying === clipId && mpPlayer.src) {
+        mpToggle();
+        return;
+    }
+
+    // Reset old row icon
+    if (currentlyPlaying) {
+        var prev = document.getElementById('play-icon-' + currentlyPlaying);
+        if (prev) prev.textContent = 'play_arrow';
+    }
+
+    // Start new clip
+    currentlyPlaying = clipId;
+    var clip = clipsCache[clipId];
+    mpPlayer.src = url;
+    mpPlayer.play();
+
+    // Update row icon
+    var icon = document.getElementById('play-icon-' + clipId);
+    if (icon) icon.textContent = 'pause';
+
+    // Show mini player
+    var mp = document.getElementById('mini-player');
+    mp.classList.remove('hidden');
+    document.getElementById('mp-title').textContent = clip ? (clip.title || 'Untitled') : 'Playing...';
+    document.getElementById('mp-artist').textContent = clip ? (clip.model_name || '') : '';
+    var cover = document.getElementById('mp-cover');
+    cover.src = clip ? (clip.image_url || '') : '';
+    cover.style.display = (clip && clip.image_url) ? '' : 'none';
+    document.getElementById('mp-play-icon').textContent = 'pause';
+    document.getElementById('mp-duration').textContent = clip && clip.duration ? fmtDur(clip.duration) : '--:--';
+    document.getElementById('mp-current').textContent = '0:00';
+    document.getElementById('mp-progress-fill').style.width = '0%';
+
+    // Add bottom padding to body so content isn't hidden behind player
+    document.body.style.paddingBottom = '80px';
+
+    mpStartProgress();
+}
+
+function mpToggle() {
+    if (!mpPlayer.src) return;
+    if (mpPlayer.paused) {
+        mpPlayer.play();
+        document.getElementById('mp-play-icon').textContent = 'pause';
+        if (currentlyPlaying) {
+            var i = document.getElementById('play-icon-' + currentlyPlaying);
+            if (i) i.textContent = 'pause';
+        }
+        mpStartProgress();
+    } else {
+        mpPlayer.pause();
+        document.getElementById('mp-play-icon').textContent = 'play_arrow';
+        if (currentlyPlaying) {
+            var i = document.getElementById('play-icon-' + currentlyPlaying);
+            if (i) i.textContent = 'play_arrow';
+        }
+        if (mpAnimFrame) { cancelAnimationFrame(mpAnimFrame); mpAnimFrame = null; }
+    }
+}
+
+function mpSeek(e) {
+    if (!mpPlayer.src || !mpPlayer.duration) return;
+    var bar = document.getElementById('mp-progress-bar');
+    var rect = bar.getBoundingClientRect();
+    var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    mpPlayer.currentTime = pct * mpPlayer.duration;
+    document.getElementById('mp-progress-fill').style.width = (pct * 100) + '%';
+}
+
+function mpStartProgress() {
+    if (mpAnimFrame) cancelAnimationFrame(mpAnimFrame);
+    function tick() {
+        if (mpPlayer.paused) return;
+        var cur = mpPlayer.currentTime || 0;
+        var dur = mpPlayer.duration || 0;
+        document.getElementById('mp-current').textContent = fmtDur(cur);
+        if (dur > 0) {
+            document.getElementById('mp-progress-fill').style.width = ((cur / dur) * 100) + '%';
+            document.getElementById('mp-duration').textContent = fmtDur(dur);
+        }
+        mpAnimFrame = requestAnimationFrame(tick);
+    }
+    mpAnimFrame = requestAnimationFrame(tick);
+}
+
+function mpClose() {
+    mpPlayer.pause();
+    mpPlayer.src = '';
+    if (currentlyPlaying) {
+        var i = document.getElementById('play-icon-' + currentlyPlaying);
+        if (i) i.textContent = 'play_arrow';
+        currentlyPlaying = null;
+    }
+    document.getElementById('mini-player').classList.add('hidden');
+    document.body.style.paddingBottom = '';
+    if (mpAnimFrame) { cancelAnimationFrame(mpAnimFrame); mpAnimFrame = null; }
+}
+
+mpPlayer.addEventListener('ended', function() {
+    document.getElementById('mp-play-icon').textContent = 'play_arrow';
+    document.getElementById('mp-progress-fill').style.width = '100%';
+    if (currentlyPlaying) {
+        var i = document.getElementById('play-icon-' + currentlyPlaying);
+        if (i) i.textContent = 'play_arrow';
+        currentlyPlaying = null;
+    }
+    if (mpAnimFrame) { cancelAnimationFrame(mpAnimFrame); mpAnimFrame = null; }
+});
+
+/* ─── Download ─── */
+async function downloadClip(sunoId) {
+    showToast('Starting download...', 'info');
+    try {
+        var resp = await fetch('/api/download-from-history', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ suno_id: sunoId }),
+        });
+        var data = await resp.json();
+        if (data.error) showToast(data.error, 'error');
+        else showToast(data.message + (data.title ? ' \u2014 ' + data.title : ''), 'success');
+    } catch (e) { showToast('Download failed', 'error'); }
+}
+
+async function downloadSelected() {
+    if (selectedIds.size === 0) return;
+    var ids = Array.from(selectedIds);
+    showToast('Queueing ' + ids.length + ' clips for download...', 'info');
+    try {
+        var resp = await fetch('/api/download-from-history/batch', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ suno_ids: ids }),
+        });
+        var data = await resp.json();
+        if (data.error) {
+            showToast(data.error, 'error');
+        } else {
+            var msg = data.message;
+            if (data.skipped > 0) msg += ' (' + data.skipped + ' skipped)';
+            showToast(msg, 'success');
+            selectedIds.clear();
+            updateSelectionUI();
+        }
+    } catch (e) {
+        showToast('Batch download failed: ' + e.message, 'error');
+    }
+}
+
+/* ─── Start ─── */
+loadPage(0);
+</script>
+{% endblock %}

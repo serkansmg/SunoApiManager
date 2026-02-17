@@ -1,0 +1,10 @@
+fastapi==0.129.0
+uvicorn==0.40.0
+jinja2==3.1.6
+python-multipart==0.0.22
+aiohttp==3.13.3
+aiofiles==25.1.0
+openpyxl==3.1.5
+pydub==0.25.1
+python-dotenv==1.2.1
+pyyaml==6.0.3

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>{% block title %}Suno Manager{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#6961ff",
+                        "primary-hover": "#564fd9",
+                        "background-light": "#f5f5f8",
+                        "background-dark": "#100f23",
+                        "surface-dark": "#1e1d32",
+                        "surface-hover": "#222142",
+                        "success": "#22c55e",
+                        "warning": "#eab308",
+                        "danger": "#ef4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #100f23; }
+        ::-webkit-scrollbar-thumb { background: #2d2b4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6961ff; }
+        .glass-panel {
+            background: rgba(30, 29, 50, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(105,97,255,0.3); border-radius: 4px; }
+
+        /* ─── Download Progress Overlay ─────────────────────── */
+        .download-progress-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(16, 15, 35, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 40;
+            border-radius: inherit;
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s ease;
+        }
+        .download-progress-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .circular-progress {
+            width: 48px;
+            height: 48px;
+            transform: rotate(-90deg);
+        }
+        .circular-progress .track {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 4;
+        }
+        .circular-progress .fill {
+            fill: none;
+            stroke: #6961ff;
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-dasharray: 126;
+            stroke-dashoffset: 126;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+        .circular-progress.complete .fill {
+            stroke: #22c55e;
+        }
+        .circular-progress.error .fill {
+            stroke: #ef4444;
+        }
+        .circular-progress.indeterminate .fill {
+            animation: progress-spin 1.4s linear infinite;
+            stroke-dasharray: 80 126;
+        }
+        @keyframes progress-spin {
+            0% { stroke-dashoffset: 126; }
+            50% { stroke-dashoffset: 30; }
+            100% { stroke-dashoffset: 126; }
+        }
+
+        .progress-label {
+            margin-top: 6px;
+            font-size: 10px;
+            color: #94a3b8;
+            text-align: center;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .progress-pct {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* ─── Song Row Fade-out ─────────────────────────────── */
+        .song-row.removing {
+            animation: row-fade-out 0.4s ease forwards;
+        }
+        @keyframes row-fade-out {
+            0% { opacity: 1; max-height: 200px; }
+            100% { opacity: 0; max-height: 0; padding: 0; margin: 0; border: none; overflow: hidden; }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 font-display min-h-screen flex flex-col transition-colors duration-300">
+
+<!-- Top Navigation Bar -->
+<nav class="sticky top-0 z-50 w-full glass-panel border-b border-slate-200 dark:border-white/10 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <a href="/" class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+                    <span class="material-icons">music_note</span>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-white">Suno Manager</h1>
+            </a>
+            <!-- Nav Links -->
+            <div class="hidden md:flex items-center gap-1 ml-6">
+                <a href="/" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ 'bg-primary/10 text-primary' if active_page == 'dashboard' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">Dashboard</a>
+                <a href="/upload" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ 'bg-primary/10 text-primary' if active_page == 'upload' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">Upload</a>
+                <a href="/songs" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ 'bg-primary/10 text-primary' if active_page == 'songs' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">Songs</a>
+                <a href="/history" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ 'bg-primary/10 text-primary' if active_page == 'history' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">History</a>
+                <a href="/settings" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ 'bg-primary/10 text-primary' if active_page == 'settings' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">Settings</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="api-status" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-dark border border-white/5 text-sm">
+                <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot"></span>
+                <span class="text-slate-400" id="status-text">Checking...</span>
+            </div>
+            <div id="credits-badge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-dark border border-white/5 text-sm">
+                <span class="material-icons text-primary text-sm">bolt</span>
+                <span class="text-slate-300 font-medium" id="credits-count">...</span>
+                <span class="text-slate-500">Credits</span>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<main class="flex-grow w-full max-w-7xl mx-auto px-6 py-8">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- Bottom Action Bar -->
+{% block bottom_bar %}{% endblock %}
+
+<!-- Toast notification -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div class="px-4 py-3 rounded-xl bg-surface-dark border border-white/10 shadow-xl flex items-center gap-3 max-w-sm">
+        <span id="toast-icon" class="material-icons text-primary">info</span>
+        <span id="toast-message" class="text-sm text-white"></span>
+    </div>
+</div>
+
+<script>
+    // Check API status on load
+    async function checkApiStatus() {
+        try {
+            const resp = await fetch('/api/test-connection', {method: 'POST'});
+            const data = await resp.json();
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            if (data.status === 'connected') {
+                dot.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
+                text.textContent = 'Online';
+                text.className = 'text-green-400';
+                if (data.credits && data.credits.credits_left !== undefined) {
+                    document.getElementById('credits-count').textContent = data.credits.credits_left;
+                }
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500';
+                text.textContent = 'Offline';
+                text.className = 'text-red-400';
+            }
+        } catch {
+            document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-red-500';
+            document.getElementById('status-text').textContent = 'Offline';
+        }
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toast-icon');
+        const msg = document.getElementById('toast-message');
+        msg.textContent = message;
+        icon.textContent = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info';
+        icon.className = `material-icons ${type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-primary'}`;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 4000);
+    }
+
+    checkApiStatus();
+
+    // ─── Global WebSocket ────────────────────────────────────
+    var ws = null;
+    var wsReconnectTimer = null;
+    var wsHandlers = {};  // event -> [callback, ...]
+
+    function wsOn(event, callback) {
+        if (!wsHandlers[event]) wsHandlers[event] = [];
+        wsHandlers[event].push(callback);
+    }
+
+    function wsConnect() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+        var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(protocol + '//' + location.host + '/ws');
+
+        ws.onopen = function() {
+            console.log('[WS] Connected');
+            if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+            // Ping every 30s to keep alive
+            ws._pingInterval = setInterval(function() {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({action: 'ping'}));
+                }
+            }, 30000);
+        };
+
+        ws.onmessage = function(e) {
+            try {
+                var msg = JSON.parse(e.data);
+                var event = msg.event;
+                if (event && wsHandlers[event]) {
+                    wsHandlers[event].forEach(function(cb) { cb(msg); });
+                }
+            } catch (err) {
+                console.error('[WS] Parse error:', err);
+            }
+        };
+
+        ws.onclose = function() {
+            console.log('[WS] Disconnected, reconnecting in 3s...');
+            if (ws._pingInterval) clearInterval(ws._pingInterval);
+            wsReconnectTimer = setTimeout(wsConnect, 3000);
+        };
+
+        ws.onerror = function() {
+            ws.close();
+        };
+    }
+
+    wsConnect();
+
+    // ─── Global Auto-Polling ──────────────────────────────────
+    // Polls Suno for status updates on all pages (not just dashboard)
+    var _pollTimer = null;
+
+    async function globalPoll() {
+        try {
+            var resp = await fetch('/api/poll-status', { method: 'POST' });
+            var data = await resp.json();
+            if (data.updated > 0) {
+                console.log('[Poll] Updated ' + data.updated + ' generations');
+            }
+            // If no incomplete generations left, stop polling
+            if (data.message === 'No incomplete generations') {
+                stopGlobalPoll();
+            }
+        } catch (e) {
+            console.error('[Poll] Error:', e);
+        }
+    }
+
+    function startGlobalPoll() {
+        if (_pollTimer) return;
+        var interval = 15000; // 15 seconds
+        _pollTimer = setInterval(globalPoll, interval);
+        console.log('[Poll] Started (every ' + (interval/1000) + 's)');
+    }
+
+    function stopGlobalPoll() {
+        if (_pollTimer) {
+            clearInterval(_pollTimer);
+            _pollTimer = null;
+            console.log('[Poll] Stopped (no incomplete generations)');
+        }
+    }
+
+    // Auto-start polling when generation updates come in
+    wsOn('generation_update', function(msg) {
+        if (msg.status && msg.status !== 'complete' && msg.status !== 'error') {
+            startGlobalPoll();
+        }
+    });
+
+    // Check on page load if there are incomplete gens → start polling
+    (async function() {
+        try {
+            var resp = await fetch('/api/poll-status', { method: 'POST' });
+            var data = await resp.json();
+            if (data.message !== 'No incomplete generations') {
+                startGlobalPoll();
+            }
+        } catch(e) {}
+    })();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

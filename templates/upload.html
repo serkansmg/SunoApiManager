@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Upload Excel - Suno Manager{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+    <!-- Left Side: Upload & Preview -->
+    <div class="lg:col-span-3 space-y-8">
+        <!-- Header -->
+        <div>
+            <h1 class="text-2xl font-bold text-white">Upload Song Metadata</h1>
+            <p class="text-slate-400 mt-1">Import bulk song data to generate your next hits.</p>
+        </div>
+
+        <!-- Drop Zone -->
+        <div class="w-full relative group cursor-pointer" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <div class="absolute inset-0 bg-primary/5 rounded-xl transform transition-transform group-hover:scale-[1.01]"></div>
+            <div class="relative w-full rounded-xl border-2 border-dashed border-slate-700 group-hover:border-primary group-hover:bg-primary/5 transition-all duration-200 p-12 flex flex-col items-center justify-center text-center bg-surface-dark">
+                <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <span class="material-icons text-3xl text-primary">cloud_upload</span>
+                </div>
+                <h3 class="text-lg font-medium text-white mb-2">
+                    Drop your Excel file here or <span class="text-primary hover:underline">click to browse</span>
+                </h3>
+                <p class="text-sm text-slate-400 mb-6">Supports .xlsx, .xls, .csv files up to 10MB</p>
+                <button type="button" class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium shadow-lg shadow-primary/25 transition-all flex items-center gap-2">
+                    <span class="material-icons text-lg">folder_open</span>
+                    Browse Files
+                </button>
+            </div>
+            <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFileUpload(this)"/>
+        </div>
+
+        <!-- Preview Table (hidden initially) -->
+        <div id="preview-section" class="hidden bg-surface-dark rounded-xl border border-white/5 shadow-xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-slate-400">table_view</span>
+                    <h3 class="font-medium text-white">Data Preview</h3>
+                </div>
+                <span id="format-badge" class="inline-flex items-center rounded-md bg-green-400/10 px-2 py-1 text-xs font-medium text-green-400 ring-1 ring-inset ring-green-400/20">
+                    Valid Format
+                </span>
+            </div>
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left text-sm text-slate-400">
+                    <thead class="bg-white/5 text-xs uppercase text-slate-300">
+                        <tr>
+                            <th class="px-6 py-3 font-semibold w-16">#</th>
+                            <th class="px-6 py-3 font-semibold w-1/4">Title</th>
+                            <th class="px-6 py-3 font-semibold w-1/3">Lyrics</th>
+                            <th class="px-6 py-3 font-semibold">Tags</th>
+                            <th class="px-6 py-3 font-semibold text-center w-24">Instr.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-body" class="divide-y divide-white/5">
+                    </tbody>
+                </table>
+            </div>
+            <!-- Footer -->
+            <div class="bg-white/5 px-6 py-4 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="text-sm text-slate-400 font-medium">
+                    <span class="text-primary" id="song-count">0</span> songs found in file
+                </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <button onclick="cancelUpload()" class="flex-1 sm:flex-none px-4 py-2 text-sm font-medium text-slate-300 bg-transparent border border-slate-600 rounded-lg hover:bg-white/5 transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="saveSongs()" id="save-btn" class="flex-1 sm:flex-none px-6 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2">
+                        <span class="material-icons text-sm">save</span>
+                        Save to Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side: Instructions -->
+    <div class="lg:col-span-1">
+        <div class="bg-surface-dark rounded-xl border border-white/5 p-6 sticky top-24">
+            <div class="flex items-center gap-2 mb-4 text-primary">
+                <span class="material-icons">info</span>
+                <h2 class="font-semibold text-white">Required Format</h2>
+            </div>
+            <p class="text-sm text-slate-400 mb-6">
+                Ensure your Excel file follows this exact column structure for successful import.
+            </p>
+            <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">A</div>
+                    <div>
+                        <h4 class="text-sm font-medium text-white">title</h4>
+                        <p class="text-xs text-slate-400">Song title (Text)</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">B</div>
+                    <div>
+                        <h4 class="text-sm font-medium text-white">lyrics</h4>
+                        <p class="text-xs text-slate-400">Full song lyrics or [Instrumental]</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">C</div>
+                    <div>
+                        <h4 class="text-sm font-medium text-white">tags</h4>
+                        <p class="text-xs text-slate-400">Comma separated styles (e.g., Pop, Jazz)</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">D</div>
+                    <div>
+                        <h4 class="text-sm font-medium text-white">negative_tags</h4>
+                        <p class="text-xs text-slate-400">Excluded styles (optional)</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">E</div>
+                    <div>
+                        <h4 class="text-sm font-medium text-white">make_instrumental</h4>
+                        <p class="text-xs text-slate-400">Boolean (TRUE/FALSE)</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">F</div>
+                    <div>
+                        <h4 class="text-sm font-medium text-white">model</h4>
+                        <p class="text-xs text-slate-400">e.g. chirp-v3-5, chirp-crow</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 pt-6 border-t border-white/5">
+                <a href="/api/sample-excel" class="flex items-center justify-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors">
+                    <span class="material-icons text-lg">download</span>
+                    Download Sample .xlsx
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let uploadedSongs = [];
+
+    // Drag & drop
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.querySelector('.relative').classList.add('border-primary', 'bg-primary/5');
+    });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.querySelector('.relative').classList.remove('border-primary', 'bg-primary/5');
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.querySelector('.relative').classList.remove('border-primary', 'bg-primary/5');
+        if (e.dataTransfer.files.length > 0) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    function handleFileUpload(input) {
+        if (input.files.length > 0) {
+            handleFile(input.files[0]);
+        }
+    }
+
+    async function handleFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            showToast('Parsing file...', 'info');
+            const resp = await fetch('/api/upload-excel', { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+
+            uploadedSongs = data.songs;
+            renderPreview(data.songs);
+            document.getElementById('song-count').textContent = data.count;
+            document.getElementById('preview-section').classList.remove('hidden');
+            showToast(`Found ${data.count} songs`, 'success');
+        } catch (e) {
+            showToast('Failed to parse file', 'error');
+        }
+    }
+
+    function renderPreview(songs) {
+        const tbody = document.getElementById('preview-body');
+        tbody.textContent = '';
+        songs.forEach((song, i) => {
+            const tr = document.createElement('tr');
+            tr.className = i % 2 === 0 ? 'hover:bg-primary/5 transition-colors' : 'bg-white/[0.02] hover:bg-primary/5 transition-colors';
+
+            const tdNum = document.createElement('td');
+            tdNum.className = 'px-6 py-4 font-mono text-xs';
+            tdNum.textContent = String(i + 1).padStart(2, '0');
+            tr.appendChild(tdNum);
+
+            const tdTitle = document.createElement('td');
+            tdTitle.className = 'px-6 py-4 font-medium text-white';
+            tdTitle.textContent = song.title;
+            tr.appendChild(tdTitle);
+
+            const tdLyrics = document.createElement('td');
+            tdLyrics.className = 'px-6 py-4';
+            const lyricsDiv = document.createElement('div');
+            lyricsDiv.className = 'truncate max-w-[200px]';
+            lyricsDiv.title = song.lyrics;
+            lyricsDiv.textContent = song.lyrics.substring(0, 60) + (song.lyrics.length > 60 ? '...' : '');
+            tdLyrics.appendChild(lyricsDiv);
+            tr.appendChild(tdLyrics);
+
+            const tdTags = document.createElement('td');
+            tdTags.className = 'px-6 py-4';
+            const tagsDiv = document.createElement('div');
+            tagsDiv.className = 'flex gap-1 flex-wrap';
+            song.tags.split(',').slice(0, 3).forEach(tag => {
+                const span = document.createElement('span');
+                span.className = 'px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-300';
+                span.textContent = tag.trim();
+                tagsDiv.appendChild(span);
+            });
+            tdTags.appendChild(tagsDiv);
+            tr.appendChild(tdTags);
+
+            const tdInstr = document.createElement('td');
+            tdInstr.className = 'px-6 py-4 text-center';
+            const instrIcon = document.createElement('span');
+            instrIcon.className = 'material-icons text-lg ' + (song.make_instrumental ? 'text-green-500' : 'text-slate-600');
+            instrIcon.textContent = song.make_instrumental ? 'check_circle' : 'cancel';
+            tdInstr.appendChild(instrIcon);
+            tr.appendChild(tdInstr);
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    function cancelUpload() {
+        uploadedSongs = [];
+        document.getElementById('preview-section').classList.add('hidden');
+        document.getElementById('file-input').value = '';
+    }
+
+    async function saveSongs() {
+        if (uploadedSongs.length === 0) return;
+
+        const btn = document.getElementById('save-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            const resp = await fetch('/api/save-songs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ songs: uploadedSongs }),
+            });
+            const data = await resp.json();
+            showToast(`Saved ${data.saved} songs to database!`, 'success');
+            setTimeout(() => { window.location.href = '/'; }, 1500);
+        } catch (e) {
+            showToast('Failed to save songs', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Save to Database';
+        }
+    }
+</script>
+{% endblock %}

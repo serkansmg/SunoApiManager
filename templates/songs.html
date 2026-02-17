@@ -1,0 +1,859 @@
+{% extends "base.html" %}
+{% block title %}My Songs - Suno Manager{% endblock %}
+
+{% block content %}
+<!-- Header & Controls -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+    <div>
+        <h2 class="text-3xl font-bold text-white mb-2">My Songs</h2>
+        <p class="text-slate-400">Manage your generated tracks and history.</p>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <!-- Search -->
+        <form method="get" action="/songs" class="flex gap-3 w-full md:w-auto">
+            <div class="relative group w-full md:w-64">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-icons text-xl">search</span>
+                <input name="search" value="{{ current_search }}" class="w-full pl-10 pr-4 py-2.5 bg-surface-dark border border-white/10 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-slate-400 text-white" placeholder="Search title or tags..." type="text"/>
+            </div>
+            <!-- Status Filter -->
+            <select name="status" onchange="this.form.submit()" class="pl-4 pr-10 py-2.5 bg-surface-dark border border-white/10 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none cursor-pointer text-white w-full md:w-40">
+                <option value="all" {{ 'selected' if current_status == 'all' }}>Status: All</option>
+                <option value="complete" {{ 'selected' if current_status == 'complete' }}>Completed</option>
+                <option value="pending" {{ 'selected' if current_status == 'pending' }}>Pending</option>
+                <option value="submitted" {{ 'selected' if current_status == 'submitted' }}>Submitted</option>
+                <option value="error" {{ 'selected' if current_status == 'error' }}>Error</option>
+            </select>
+            <input type="hidden" name="page" value="1"/>
+        </form>
+        <!-- Actions -->
+        <div class="flex gap-2">
+            <button onclick="pollNow()" class="px-4 py-2.5 bg-surface-dark border border-white/10 rounded-full text-sm text-slate-300 hover:bg-white/5 transition-colors flex items-center gap-2" title="Refresh statuses">
+                <span class="material-icons text-lg">refresh</span>
+            </button>
+            <button onclick="downloadCompleted()" class="px-4 py-2.5 bg-surface-dark border border-white/10 rounded-full text-sm text-slate-300 hover:bg-white/5 transition-colors flex items-center gap-2" title="Download all completed">
+                <span class="material-icons text-lg">download</span>
+            </button>
+            <button onclick="retryAllFailed()" class="px-4 py-2.5 bg-surface-dark border border-white/10 rounded-full text-sm text-yellow-400 hover:bg-yellow-500/10 transition-colors flex items-center gap-2" title="Retry all failed">
+                <span class="material-icons text-lg">replay</span>
+            </button>
+            <button onclick="deleteAllFailed()" class="px-4 py-2.5 bg-surface-dark border border-white/10 rounded-full text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2" title="Delete all failed">
+                <span class="material-icons text-lg">delete_sweep</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Table Container -->
+<div class="bg-surface-dark border border-white/5 rounded-2xl shadow-xl overflow-hidden">
+    <!-- Table Header -->
+    <div class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-white/5">
+        <div class="col-span-1 text-center">#</div>
+        <div class="col-span-3">Title & Tags</div>
+        <div class="col-span-2">Status</div>
+        <div class="col-span-1">Duration</div>
+        <div class="col-span-1 text-center">Silence</div>
+        <div class="col-span-2">Created</div>
+        <div class="col-span-2 text-right">Actions</div>
+    </div>
+
+    {% for song in songs_data.songs %}
+    {% set row_index = loop.index + (songs_data.page - 1) * songs_data.per_page %}
+    {% include '_song_row.html' %}
+    {% endfor %}
+
+    {% if not songs_data.songs %}
+    <div class="px-6 py-16 text-center text-slate-500">
+        <span class="material-icons text-5xl mb-3 block">music_off</span>
+        <p class="text-lg font-medium">No songs found</p>
+        <p class="text-sm mt-1">Upload an Excel file to start generating music.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if songs_data.total_pages > 1 %}
+<div class="flex items-center justify-between gap-4 mt-6 px-2">
+    <div class="text-sm text-slate-400">
+        Showing page <span class="font-medium text-white">{{ songs_data.page }}</span> of <span class="font-medium text-white">{{ songs_data.total_pages }}</span>
+        (<span class="font-medium text-white">{{ songs_data.total }}</span> total)
+    </div>
+    <div class="flex items-center gap-2">
+        {% if songs_data.page > 1 %}
+        <a href="/songs?page={{ songs_data.page - 1 }}&status={{ current_status }}&search={{ current_search }}" class="p-2 rounded-full border border-white/10 text-slate-500 hover:bg-white/5 transition-colors">
+            <span class="material-icons text-lg">chevron_left</span>
+        </a>
+        {% endif %}
+        {% for p in range(1, songs_data.total_pages + 1) %}
+            {% if p <= 5 or p == songs_data.total_pages or (p >= songs_data.page - 1 and p <= songs_data.page + 1) %}
+            <a href="/songs?page={{ p }}&status={{ current_status }}&search={{ current_search }}" class="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-colors {{ 'bg-primary text-white shadow-lg shadow-primary/25' if p == songs_data.page else 'text-slate-400 hover:bg-white/5' }}">{{ p }}</a>
+            {% elif p == 6 or p == songs_data.page - 2 %}
+            <span class="text-slate-600">...</span>
+            {% endif %}
+        {% endfor %}
+        {% if songs_data.page < songs_data.total_pages %}
+        <a href="/songs?page={{ songs_data.page + 1 }}&status={{ current_status }}&search={{ current_search }}" class="p-2 rounded-full border border-white/10 text-slate-500 hover:bg-white/5 transition-colors">
+            <span class="material-icons text-lg">chevron_right</span>
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Hidden Audio Player -->
+<audio id="global-player" class="hidden" preload="none"></audio>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ─── AJAX Row Refresh ────────────────────────────────────
+    async function refreshSongRow(songId) {
+        var row = document.querySelector('.song-row[data-song-id="' + songId + '"]');
+        if (!row) return;
+        try {
+            var resp = await fetch('/api/song-row/' + songId);
+            if (!resp.ok) return;
+            var html = await resp.text();
+            var tmp = document.createElement('div');
+            tmp.innerHTML = html.trim();
+            var newRow = tmp.firstElementChild;
+            if (newRow) {
+                row.replaceWith(newRow);
+                // Re-observe detail panel for waveform auto-load
+                var detail = newRow.querySelector('[id^="detail-"]');
+                if (detail) observer.observe(detail, { attributes: true });
+            }
+        } catch (e) {
+            console.error('Row refresh failed for song ' + songId + ':', e);
+        }
+    }
+
+    function removeSongRow(songId) {
+        var row = document.querySelector('.song-row[data-song-id="' + songId + '"]');
+        if (!row) return;
+        row.classList.add('removing');
+        row.addEventListener('animationend', function() { row.remove(); });
+    }
+
+    // ─── Download Progress Overlay ───────────────────────────
+    function createProgressOverlay(songRow) {
+        var overlay = document.createElement('div');
+        overlay.className = 'download-progress-overlay';
+        overlay.innerHTML =
+            '<div style="position:relative;display:flex;align-items:center;justify-content:center">' +
+                '<svg class="circular-progress" viewBox="0 0 44 44">' +
+                    '<circle class="track" cx="22" cy="22" r="20"/>' +
+                    '<circle class="fill" cx="22" cy="22" r="20"/>' +
+                '</svg>' +
+                '<span class="progress-pct"></span>' +
+            '</div>' +
+            '<div class="progress-label">Starting...</div>';
+        songRow.style.position = 'relative';
+        songRow.appendChild(overlay);
+        return overlay;
+    }
+
+    function updateProgressOverlay(overlay, progress, status, message) {
+        if (!overlay) return;
+        var svg = overlay.querySelector('.circular-progress');
+        var fill = overlay.querySelector('.fill');
+        var pctEl = overlay.querySelector('.progress-pct');
+        var label = overlay.querySelector('.progress-label');
+        var circumference = 2 * Math.PI * 20; // r=20
+
+        // Remove state classes
+        svg.classList.remove('complete', 'error', 'indeterminate');
+
+        if (status === 'complete') {
+            svg.classList.add('complete');
+            fill.style.strokeDashoffset = '0';
+            pctEl.textContent = '\u2713';
+            label.textContent = message || 'Complete';
+        } else if (status === 'error') {
+            svg.classList.add('error');
+            pctEl.textContent = '!';
+            label.textContent = message || 'Error';
+        } else if (progress < 0) {
+            // Indeterminate
+            svg.classList.add('indeterminate');
+            pctEl.textContent = '';
+            label.textContent = message || 'Downloading...';
+        } else {
+            var offset = circumference - (progress * circumference);
+            fill.style.strokeDashoffset = offset;
+            pctEl.textContent = Math.round(progress * 100) + '%';
+            label.textContent = message || 'Downloading...';
+        }
+    }
+
+    function removeProgressOverlay(overlay) {
+        if (!overlay) return;
+        overlay.classList.add('fade-out');
+        setTimeout(function() { overlay.remove(); }, 350);
+    }
+
+    // Active SSE connections
+    var activeProgressStreams = {};
+
+    function watchDownloadProgress(sunoId, songId) {
+        // Prevent duplicate watchers
+        if (activeProgressStreams[sunoId]) return;
+
+        var row = document.querySelector('.song-row[data-suno-id="' + sunoId + '"]');
+        if (!row && songId) {
+            row = document.querySelector('.song-row[data-song-id="' + songId + '"]');
+        }
+        if (!row) return;
+
+        var overlay = createProgressOverlay(row);
+        var es = new EventSource('/api/download-progress/' + encodeURIComponent(sunoId));
+        activeProgressStreams[sunoId] = es;
+        var gotAnyMessage = false;
+        var finished = false;
+        var lastMessageTime = Date.now();
+
+        function cleanup(delayMs) {
+            if (finished) return;
+            finished = true;
+            es.close();
+            delete activeProgressStreams[sunoId];
+            if (safetyTimer) clearInterval(safetyTimer);
+            setTimeout(function() {
+                removeProgressOverlay(overlay);
+                var rowSongId = row.dataset.songId;
+                if (rowSongId) refreshSongRow(rowSongId);
+            }, delayMs);
+        }
+
+        es.onmessage = function(event) {
+            if (finished) return;
+            try {
+                gotAnyMessage = true;
+                lastMessageTime = Date.now();
+                var d = JSON.parse(event.data);
+                updateProgressOverlay(overlay, d.progress, d.status, d.message);
+
+                if (d.status === 'complete' || d.status === 'error' || d.status === 'timeout') {
+                    cleanup(d.status === 'complete' ? 1200 : 500);
+                }
+            } catch (e) {
+                console.error('SSE parse error:', e);
+            }
+        };
+
+        es.onerror = function() {
+            // EventSource auto-reconnects on error — we must close it immediately
+            cleanup(500);
+        };
+
+        // Safety net: if no messages for 30s, force cleanup
+        var safetyTimer = setInterval(function() {
+            var now = Date.now();
+            var sinceLastMsg = now - lastMessageTime;
+            if (sinceLastMsg > 30000) {
+                console.warn('SSE safety timeout for ' + sunoId + ' (no message for 30s)');
+                cleanup(200);
+            }
+        }, 5000);
+    }
+
+    // ─── Core Functions ──────────────────────────────────────
+    function toggleDetail(genId) {
+        var el = document.getElementById('detail-' + genId);
+        if (el) el.classList.toggle('hidden');
+    }
+
+    function playAudio(url) {
+        var player = document.getElementById('global-player');
+        if (player.src === url && !player.paused) {
+            player.pause();
+        } else {
+            player.src = url;
+            player.play();
+        }
+    }
+
+    async function downloadSingle(sunoId) {
+        try {
+            var resp = await fetch('/api/download-single/' + sunoId, { method: 'POST' });
+            var data = await resp.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast(data.message || 'Download started', 'success');
+                watchDownloadProgress(sunoId);
+            }
+        } catch (e) {
+            showToast('Download failed', 'error');
+        }
+    }
+
+    function saveToBrowser(sunoId) {
+        var a = document.createElement('a');
+        a.href = '/api/serve-file/' + encodeURIComponent(sunoId);
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function toggleRedownloadMenu(btn) {
+        var menu = btn.nextElementSibling;
+        document.querySelectorAll('.redownload-menu').forEach(function(m) {
+            if (m !== menu) m.classList.add('hidden');
+        });
+        // Reset position classes
+        menu.classList.remove('bottom-full', 'top-full', 'mb-1', 'mt-1');
+        menu.classList.toggle('hidden');
+        if (!menu.classList.contains('hidden')) {
+            // Check if dropdown would overflow below viewport
+            var btnRect = btn.getBoundingClientRect();
+            var menuHeight = menu.offsetHeight || 120;
+            var spaceBelow = window.innerHeight - btnRect.bottom;
+            if (spaceBelow < menuHeight + 10) {
+                // Open upward
+                menu.classList.add('bottom-full', 'mb-1');
+            } else {
+                // Open downward
+                menu.classList.add('top-full', 'mt-1');
+            }
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.redownload-dropdown')) {
+            document.querySelectorAll('.redownload-menu').forEach(function(m) {
+                m.classList.add('hidden');
+            });
+        }
+    });
+
+    async function redownload(sunoId, fmt) {
+        document.querySelectorAll('.redownload-menu').forEach(function(m) {
+            m.classList.add('hidden');
+        });
+        showToast('Re-downloading as ' + fmt.toUpperCase() + '...', 'info');
+        try {
+            var resp = await fetch('/api/redownload/' + encodeURIComponent(sunoId), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ format: fmt }),
+            });
+            var data = await resp.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast(data.message, 'success');
+                watchDownloadProgress(sunoId);
+            }
+        } catch (e) {
+            showToast('Re-download failed', 'error');
+        }
+    }
+
+    async function downloadCompleted() {
+        try {
+            var resp = await fetch('/api/download-completed', { method: 'POST' });
+            var data = await resp.json();
+            showToast(data.message, data.count > 0 ? 'success' : 'info');
+            // For bulk downloads, we don't have individual suno_ids easily
+            // so we just poll status later to catch updates
+        } catch (e) {
+            showToast('Download failed', 'error');
+        }
+    }
+
+    async function retrySong(songId) {
+        // Immediately update the row UI to show retrying state
+        var row = document.querySelector('.song-row[data-song-id="' + songId + '"]');
+        if (row) {
+            var statusEl = row.querySelector('.col-span-2 .inline-flex');
+            if (statusEl) {
+                statusEl.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium border border-yellow-500/20';
+                statusEl.textContent = '';
+                var dot = document.createElement('span');
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse';
+                statusEl.appendChild(dot);
+                statusEl.appendChild(document.createTextNode('Retrying...'));
+            }
+        }
+        try {
+            var resp = await fetch('/api/retry/' + songId, { method: 'POST' });
+            var data = await resp.json();
+            showToast(data.message || 'Retry started', 'success');
+            setTimeout(function() { refreshSongRow(songId); }, 3000);
+        } catch (e) {
+            showToast('Retry failed', 'error');
+            if (row) refreshSongRow(songId);
+        }
+    }
+
+    async function deleteSong(songId, title) {
+        if (!confirm('Delete "' + title + '"?\nThis will also remove downloaded files.')) return;
+        try {
+            var resp = await fetch('/api/song/' + songId, { method: 'DELETE' });
+            var data = await resp.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast('Song deleted', 'success');
+                removeSongRow(songId);
+            }
+        } catch (e) {
+            showToast('Delete failed', 'error');
+        }
+    }
+
+    async function deleteAllFailed() {
+        if (!confirm('Delete ALL failed songs?\nThis cannot be undone.')) return;
+        try {
+            var idsResp = await fetch('/api/failed-song-ids');
+            var idsData = await idsResp.json();
+            if (!idsData.ids || idsData.ids.length === 0) {
+                showToast('No failed songs to delete', 'info');
+                return;
+            }
+            var delResp = await fetch('/api/delete-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ song_ids: idsData.ids }),
+            });
+            var delData = await delResp.json();
+            showToast(delData.message, 'success');
+            idsData.ids.forEach(function(id) { removeSongRow(id); });
+        } catch (e) {
+            showToast('Delete failed', 'error');
+        }
+    }
+
+    async function retryAllFailed() {
+        if (!confirm('Retry ALL failed songs?')) return;
+        try {
+            var resp = await fetch('/api/retry-all-failed', { method: 'POST' });
+            var data = await resp.json();
+            showToast(data.message, data.count > 0 ? 'success' : 'info');
+            if (data.count > 0) {
+                // Refresh failed rows after a delay
+                document.querySelectorAll('.song-row').forEach(function(row) {
+                    var sid = row.dataset.songId;
+                    if (sid) setTimeout(function() { refreshSongRow(sid); }, 2500);
+                });
+            }
+        } catch (e) {
+            showToast('Retry failed', 'error');
+        }
+    }
+
+    async function pollNow() {
+        showToast('Refreshing statuses...', 'info');
+        try {
+            var resp = await fetch('/api/poll-status', { method: 'POST' });
+            var data = await resp.json();
+            var msg = 'Updated ' + data.updated + ' songs';
+            if (data.auto_download > 0) msg += ', downloading ' + data.auto_download;
+            showToast(msg, 'success');
+
+            // AJAX refresh only updated rows
+            if (data.updated_song_ids && data.updated_song_ids.length > 0) {
+                data.updated_song_ids.forEach(function(songId) {
+                    refreshSongRow(songId);
+                });
+            }
+
+            // Watch download progress for auto-downloaded songs
+            if (data.auto_download_suno_ids && data.auto_download_suno_ids.length > 0) {
+                data.auto_download_suno_ids.forEach(function(sunoId) {
+                    watchDownloadProgress(sunoId);
+                });
+            }
+        } catch (e) {
+            showToast('Polling failed', 'error');
+        }
+    }
+
+    // ─── Waveform Visualizer ─────────────────────────────────
+    var wvCache = {};
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    async function waveformLoad(container) {
+        var url = container.dataset.audioUrl;
+        var genId = container.dataset.genId;
+        if (wvCache[genId] && wvCache[genId].peaks) return wvCache[genId];
+
+        var loadingEl = container.querySelector('.wv-loading');
+        if (loadingEl) loadingEl.classList.remove('hidden');
+
+        try {
+            var resp = await fetch(url);
+            var arrayBuf = await resp.arrayBuffer();
+            var audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+            var rawData = audioBuf.getChannelData(0);
+            var totalDuration = audioBuf.duration;
+
+            var samples = 200;
+            var blockSize = Math.floor(rawData.length / samples);
+            var peaks = [];
+            for (var i = 0; i < samples; i++) {
+                var sum = 0;
+                for (var j = 0; j < blockSize; j++) {
+                    sum += Math.abs(rawData[i * blockSize + j]);
+                }
+                peaks.push(sum / blockSize);
+            }
+            var maxPeak = Math.max.apply(null, peaks);
+            var normalized = peaks.map(function(p) { return p / (maxPeak || 1); });
+
+            if (!wvCache[genId]) wvCache[genId] = {};
+            wvCache[genId].peaks = normalized;
+            wvCache[genId].duration = totalDuration;
+            if (!wvCache[genId].silenceRegions) wvCache[genId].silenceRegions = [];
+
+            drawWaveform(container, normalized, 0, wvCache[genId].silenceRegions, totalDuration);
+
+            var sunoId = container.dataset.sunoId;
+            if (sunoId) loadSilenceForWaveform(sunoId, genId, container);
+        } catch (e) {
+            console.error('Waveform load error:', e);
+        } finally {
+            if (loadingEl) loadingEl.classList.add('hidden');
+        }
+        return wvCache[genId];
+    }
+
+    async function loadSilenceForWaveform(sunoId, genId, container) {
+        try {
+            var resp = await fetch('/api/silence-details/' + encodeURIComponent(sunoId));
+            var data = await resp.json();
+            if (data.details && data.details.length > 0 && data.has_silence) {
+                if (!wvCache[genId]) wvCache[genId] = {};
+                wvCache[genId].silenceRegions = data.details;
+                if (wvCache[genId].peaks) {
+                    var progress = (wvCache[genId].audio && wvCache[genId].audio.duration) ? (wvCache[genId].audio.currentTime / wvCache[genId].audio.duration) : 0;
+                    drawWaveform(container, wvCache[genId].peaks, progress, data.details, wvCache[genId].duration);
+                }
+                updateSilenceSummary(genId, data);
+            }
+        } catch (e) {
+            console.error('Failed to load silence details:', e);
+        }
+    }
+
+    function updateSilenceSummary(genId, data) {
+        var section = document.getElementById('silence-section-' + genId);
+        if (!section) return;
+        var summaryEl = section.querySelector('.silence-summary');
+        var segmentsEl = section.querySelector('.silence-segments');
+        if (summaryEl && data.has_silence) {
+            summaryEl.textContent = data.silence_count + ' silence region' + (data.silence_count > 1 ? 's' : '') + ' \u2014 ' + data.total_silence_sec + 's total';
+        }
+        if (segmentsEl && data.details) {
+            while (segmentsEl.firstChild) segmentsEl.removeChild(segmentsEl.firstChild);
+            data.details.forEach(function(d, i) {
+                var span = document.createElement('span');
+                span.className = 'inline-flex items-center gap-1 mr-2 mb-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/10';
+                var numSpan = document.createElement('span');
+                numSpan.className = 'text-red-400';
+                numSpan.textContent = '#' + (i + 1);
+                span.appendChild(numSpan);
+                span.appendChild(document.createTextNode(' ' + formatTime(d.start) + '\u2013' + formatTime(d.end) + ' (' + d.duration + 's)'));
+                segmentsEl.appendChild(span);
+            });
+        }
+    }
+
+    function drawWaveform(container, peaks, progress, silenceRegions, totalDuration) {
+        var canvas = container.querySelector('.wv-canvas');
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        silenceRegions = silenceRegions || [];
+        totalDuration = totalDuration || 1;
+
+        for (var r = 0; r < silenceRegions.length; r++) {
+            var region = silenceRegions[r];
+            var x1 = (region.start / totalDuration) * rect.width;
+            var x2 = (region.end / totalDuration) * rect.width;
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+            ctx.fillRect(x1, 0, x2 - x1, rect.height);
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+            ctx.fillRect(x1, 0, x2 - x1, 2);
+        }
+
+        var barW = rect.width / peaks.length;
+        var mid = rect.height / 2;
+        var progressIdx = Math.floor(progress * peaks.length);
+
+        for (var i = 0; i < peaks.length; i++) {
+            var h = peaks[i] * (rect.height * 0.8);
+            var x = i * barW;
+            var played = i <= progressIdx;
+            var barTimeSec = (i / peaks.length) * totalDuration;
+            var inSilence = silenceRegions.some(function(rg) { return barTimeSec >= rg.start && barTimeSec <= rg.end; });
+
+            if (inSilence) {
+                ctx.fillStyle = played ? 'rgba(239, 68, 68, 0.8)' : 'rgba(239, 68, 68, 0.35)';
+                ctx.fillRect(x + 0.5, mid - h / 2, Math.max(barW - 1, 1), h / 2);
+                ctx.fillStyle = played ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.15)';
+                ctx.fillRect(x + 0.5, mid, Math.max(barW - 1, 1), h / 2);
+            } else {
+                ctx.fillStyle = played ? '#6961ff' : 'rgba(105, 97, 255, 0.3)';
+                ctx.fillRect(x + 0.5, mid - h / 2, Math.max(barW - 1, 1), h / 2);
+                ctx.fillStyle = played ? 'rgba(105, 97, 255, 0.6)' : 'rgba(105, 97, 255, 0.15)';
+                ctx.fillRect(x + 0.5, mid, Math.max(barW - 1, 1), h / 2);
+            }
+        }
+
+        var progressBar = container.querySelector('.wv-progress');
+        if (progressBar) progressBar.style.width = (progress * 100) + '%';
+    }
+
+    function formatTime(sec) {
+        if (!sec || isNaN(sec)) return '--:--';
+        var m = Math.floor(sec / 60);
+        var s = Math.floor(sec % 60);
+        return m + ':' + s.toString().padStart(2, '0');
+    }
+
+    function waveformTogglePlay(btn) {
+        var container = btn.closest('.waveform-player');
+        var genId = container.dataset.genId;
+        var url = container.dataset.audioUrl;
+        var entry = wvCache[genId];
+
+        Object.keys(wvCache).forEach(function(id) {
+            if (id !== genId && wvCache[id] && wvCache[id].audio && !wvCache[id].audio.paused) {
+                wvCache[id].audio.pause();
+                var otherContainer = document.querySelector('.waveform-player[data-gen-id="' + id + '"]');
+                if (otherContainer) {
+                    var otherBtn = otherContainer.querySelector('.wv-play-btn .material-icons');
+                    if (otherBtn) otherBtn.textContent = 'play_arrow';
+                }
+            }
+        });
+
+        if (!entry) {
+            wvCache[genId] = { peaks: null, audio: null, animFrame: null, silenceRegions: [], duration: 0 };
+            entry = wvCache[genId];
+        }
+
+        if (!entry.audio) {
+            entry.audio = new Audio(url);
+            entry.audio.crossOrigin = 'anonymous';
+            entry.audio.addEventListener('ended', function() {
+                btn.querySelector('.material-icons').textContent = 'play_arrow';
+                cancelAnimationFrame(entry.animFrame);
+                if (entry.peaks) drawWaveform(container, entry.peaks, 0, entry.silenceRegions, entry.duration);
+            });
+        }
+
+        var icon = btn.querySelector('.material-icons');
+        if (entry.audio.paused) {
+            entry.audio.play();
+            icon.textContent = 'pause';
+            function animate() {
+                if (!entry.audio || entry.audio.paused) return;
+                var progress = entry.audio.currentTime / (entry.audio.duration || 1);
+                var timeEl = container.querySelector('.wv-time');
+                if (timeEl) timeEl.textContent = formatTime(entry.audio.currentTime) + ' / ' + formatTime(entry.audio.duration);
+                if (entry.peaks) drawWaveform(container, entry.peaks, progress, entry.silenceRegions, entry.duration);
+                entry.animFrame = requestAnimationFrame(animate);
+            }
+            if (!entry.peaks) {
+                waveformLoad(container).then(function() { animate(); });
+            } else {
+                animate();
+            }
+        } else {
+            entry.audio.pause();
+            icon.textContent = 'play_arrow';
+            cancelAnimationFrame(entry.animFrame);
+        }
+    }
+
+    function waveformSeek(event, wrapperEl) {
+        var container = wrapperEl.closest('.waveform-player');
+        var genId = container.dataset.genId;
+        var entry = wvCache[genId];
+        if (!entry || !entry.audio || !entry.audio.duration) return;
+
+        var rect = wrapperEl.getBoundingClientRect();
+        var x = event.clientX - rect.left;
+        var pct = x / rect.width;
+        entry.audio.currentTime = pct * entry.audio.duration;
+        if (entry.peaks) drawWaveform(container, entry.peaks, pct, entry.silenceRegions, entry.duration);
+    }
+
+    // ─── Silence Re-analysis ─────────────────────────────────
+    async function reAnalyzeSilence(sunoId, genId) {
+        var section = document.getElementById('silence-section-' + genId);
+        if (!section) return;
+
+        var threshInput = section.querySelector('.silence-thresh-input');
+        var minLenInput = section.querySelector('.silence-minlen-input');
+        var threshold = parseInt(threshInput ? threshInput.value : '-40');
+        var minLength = parseInt(minLenInput ? minLenInput.value : '1000');
+
+        showToast('Analyzing silence...', 'info');
+
+        try {
+            var resp = await fetch('/api/reanalyze-silence/' + encodeURIComponent(sunoId), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ threshold: threshold, min_length: minLength }),
+            });
+            var data = await resp.json();
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+
+            // Update silence section UI with safe DOM methods
+            var resultEl = section.querySelector('.silence-result');
+            if (resultEl) {
+                while (resultEl.firstChild) resultEl.removeChild(resultEl.firstChild);
+                var wrapper = document.createElement('div');
+
+                if (data.has_silence) {
+                    wrapper.className = 'p-2.5 bg-red-500/5 border border-red-500/10 rounded-lg';
+                    var headerDiv = document.createElement('div');
+                    headerDiv.className = 'flex items-center gap-3 text-xs text-red-400 mb-2';
+                    var warnIcon = document.createElement('span');
+                    warnIcon.className = 'material-icons text-sm';
+                    warnIcon.textContent = 'warning';
+                    var summarySpan = document.createElement('span');
+                    summarySpan.className = 'font-medium silence-summary';
+                    summarySpan.textContent = data.silence_count + ' silence region' + (data.silence_count > 1 ? 's' : '') + ' \u2014 ' + data.total_silence_sec + 's total';
+                    headerDiv.appendChild(warnIcon);
+                    headerDiv.appendChild(summarySpan);
+                    wrapper.appendChild(headerDiv);
+
+                    var segDiv = document.createElement('div');
+                    segDiv.className = 'text-[10px] text-slate-500 silence-segments';
+                    data.details.forEach(function(d, i) {
+                        var seg = document.createElement('span');
+                        seg.className = 'inline-flex items-center gap-1 mr-2 mb-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/10';
+                        var numS = document.createElement('span');
+                        numS.className = 'text-red-400';
+                        numS.textContent = '#' + (i + 1);
+                        seg.appendChild(numS);
+                        seg.appendChild(document.createTextNode(' ' + formatTime(d.start) + '\u2013' + formatTime(d.end) + ' (' + d.duration + 's)'));
+                        segDiv.appendChild(seg);
+                    });
+                    wrapper.appendChild(segDiv);
+                } else {
+                    wrapper.className = 'p-2.5 bg-green-500/5 border border-green-500/10 rounded-lg';
+                    var okDiv = document.createElement('div');
+                    okDiv.className = 'flex items-center gap-2 text-xs text-green-400';
+                    var okIcon = document.createElement('span');
+                    okIcon.className = 'material-icons text-sm';
+                    okIcon.textContent = 'check_circle';
+                    var okText = document.createElement('span');
+                    okText.className = 'font-medium';
+                    okText.textContent = 'No silence detected - Clean audio';
+                    okDiv.appendChild(okIcon);
+                    okDiv.appendChild(okText);
+                    wrapper.appendChild(okDiv);
+                }
+                resultEl.appendChild(wrapper);
+            }
+
+            // Update waveform silence overlay
+            var wvContainer = document.querySelector('.waveform-player[data-suno-id="' + sunoId + '"]');
+            if (wvContainer && wvCache[genId]) {
+                wvCache[genId].silenceRegions = data.has_silence ? data.details : [];
+                if (wvCache[genId].peaks) {
+                    var prog = (wvCache[genId].audio && wvCache[genId].audio.duration) ? (wvCache[genId].audio.currentTime / wvCache[genId].audio.duration) : 0;
+                    drawWaveform(wvContainer, wvCache[genId].peaks, prog, wvCache[genId].silenceRegions, wvCache[genId].duration);
+                }
+            }
+
+            // Update silence column icon in the row
+            var songRow = section.closest('.song-row');
+            if (songRow) {
+                var songId = songRow.dataset.songId;
+                if (songId) refreshSongRow(songId);
+            }
+
+            showToast(
+                data.has_silence
+                    ? 'Silence: ' + data.silence_count + ' regions, ' + data.total_silence_sec + 's total'
+                    : 'No silence - clean audio!',
+                data.has_silence ? 'error' : 'success'
+            );
+        } catch (e) {
+            showToast('Re-analysis failed', 'error');
+        }
+    }
+
+    // ─── WebSocket Event Handlers ──────────────────────────
+    // Handle download progress via WS (supplement SSE)
+    wsOn('progress', function(msg) {
+        var sunoId = msg.suno_id;
+        if (!sunoId) return;
+
+        // If there's already an SSE overlay for this suno_id, let SSE handle it
+        if (activeProgressStreams[sunoId]) return;
+
+        // Find the row
+        var row = document.querySelector('.song-row[data-suno-id="' + sunoId + '"]');
+        if (!row) return;
+
+        // Create overlay if not exists
+        var overlay = row.querySelector('.download-progress-overlay');
+        if (!overlay && msg.status !== 'complete' && msg.status !== 'error') {
+            overlay = createProgressOverlay(row);
+            overlay.dataset.wsManaged = 'true';
+        }
+
+        if (overlay) {
+            updateProgressOverlay(overlay, msg.progress, msg.status, msg.message);
+        }
+
+        if (msg.status === 'complete' || msg.status === 'error') {
+            if (overlay) {
+                setTimeout(function() {
+                    removeProgressOverlay(overlay);
+                    var songId = row.dataset.songId;
+                    if (songId) refreshSongRow(songId);
+                }, msg.status === 'complete' ? 1200 : 500);
+            }
+        }
+    });
+
+    // Handle generation updates via WS
+    wsOn('generation_update', function(msg) {
+        var songId = msg.song_id;
+        if (!songId) return;
+        // Refresh all rows for this song (may have multiple generations)
+        var rows = document.querySelectorAll('.song-row[data-song-id="' + songId + '"]');
+        if (rows.length > 0) {
+            // Just refresh the first matching row — the AJAX endpoint returns updated data
+            refreshSongRow(songId);
+        }
+    });
+
+    // Auto-load waveform + silence when detail panel is opened
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            if (m.type === 'attributes' && m.attributeName === 'class') {
+                var el = m.target;
+                if (!el.classList.contains('hidden') && el.id && el.id.startsWith('detail-')) {
+                    var player = el.querySelector('.waveform-player');
+                    if (player && (!wvCache[player.dataset.genId] || !wvCache[player.dataset.genId].peaks)) {
+                        waveformLoad(player);
+                    }
+                }
+            }
+        });
+    });
+
+    document.querySelectorAll('[id^="detail-"]').forEach(function(el) {
+        observer.observe(el, { attributes: true });
+    });
+</script>
+{% endblock %}

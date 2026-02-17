@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Suno Manager{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<div class="mb-8">
+    <h2 class="text-2xl font-bold text-white mb-1">Dashboard Overview</h2>
+    <p class="text-slate-400">Track your music generation metrics and recent projects.</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+    <!-- Total Songs -->
+    <div class="p-5 rounded-xl bg-surface-dark border border-white/5 shadow-lg relative overflow-hidden group hover:border-primary/30 transition-all duration-300">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-primary/10 rounded-full -mr-6 -mt-6 blur-2xl group-hover:bg-primary/20 transition-all"></div>
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-primary/20 rounded-lg text-primary">
+                <span class="material-icons">library_music</span>
+            </div>
+        </div>
+        <h3 class="text-3xl font-bold text-white mb-1">{{ stats.total_gens }}</h3>
+        <p class="text-sm text-slate-400 font-medium">Total Clips</p>
+        <p class="text-xs text-slate-600 mt-1">{{ stats.total }} songs</p>
+    </div>
+    <!-- Completed -->
+    <div class="p-5 rounded-xl bg-surface-dark border border-white/5 shadow-lg relative overflow-hidden group hover:border-green-500/30 transition-all duration-300">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-green-500/10 rounded-full -mr-6 -mt-6 blur-2xl group-hover:bg-green-500/20 transition-all"></div>
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-green-500/20 rounded-lg text-green-500">
+                <span class="material-icons">check_circle</span>
+            </div>
+        </div>
+        <h3 class="text-3xl font-bold text-white mb-1">{{ stats.completed_gens }}</h3>
+        <p class="text-sm text-slate-400 font-medium">Completed</p>
+    </div>
+    <!-- Processing -->
+    <div class="p-5 rounded-xl bg-surface-dark border border-white/5 shadow-lg relative overflow-hidden group hover:border-warning/30 transition-all duration-300">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-warning/10 rounded-full -mr-6 -mt-6 blur-2xl group-hover:bg-warning/20 transition-all"></div>
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-warning/20 rounded-lg text-warning">
+                <span class="material-icons {{ 'animate-spin' if stats.processing_gens > 0 }}">sync</span>
+            </div>
+            {% if stats.processing_gens > 0 %}
+            <span class="text-xs font-medium text-warning bg-warning/10 px-2 py-1 rounded-full">Active</span>
+            {% endif %}
+        </div>
+        <h3 class="text-3xl font-bold text-white mb-1">{{ stats.processing_gens }}</h3>
+        <p class="text-sm text-slate-400 font-medium">Processing</p>
+    </div>
+    <!-- Pending -->
+    <div class="p-5 rounded-xl bg-surface-dark border border-white/5 shadow-lg relative overflow-hidden group hover:border-purple-400/30 transition-all duration-300">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-purple-400/10 rounded-full -mr-6 -mt-6 blur-2xl group-hover:bg-purple-400/20 transition-all"></div>
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-purple-400/20 rounded-lg text-purple-400">
+                <span class="material-icons">hourglass_empty</span>
+            </div>
+        </div>
+        <h3 class="text-3xl font-bold text-white mb-1">{{ stats.pending }}</h3>
+        <p class="text-sm text-slate-400 font-medium">Pending</p>
+    </div>
+    <!-- Errors -->
+    <div class="p-5 rounded-xl bg-surface-dark border border-white/5 shadow-lg relative overflow-hidden group hover:border-red-500/30 transition-all duration-300">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-red-500/10 rounded-full -mr-6 -mt-6 blur-2xl group-hover:bg-red-500/20 transition-all"></div>
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-red-500/20 rounded-lg text-red-500">
+                <span class="material-icons">error</span>
+            </div>
+        </div>
+        <h3 class="text-3xl font-bold text-white mb-1">{{ stats.errors }}</h3>
+        <p class="text-sm text-slate-400 font-medium">Errors</p>
+        {% if stats.error_gens > 0 %}
+        <p class="text-xs text-slate-600 mt-1">{{ stats.error_gens }} clips</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Activity Table -->
+<div class="rounded-xl bg-surface-dark border border-white/5 shadow-xl overflow-hidden mb-24">
+    <div class="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h3 class="text-lg font-bold text-white">Recent Activity</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-400">
+            <thead class="bg-background-dark/30 text-xs uppercase font-semibold text-slate-500">
+                <tr>
+                    <th class="px-6 py-4" scope="col">Track Title</th>
+                    <th class="px-6 py-4" scope="col">Suno ID</th>
+                    <th class="px-6 py-4" scope="col">Status</th>
+                    <th class="px-6 py-4" scope="col">Tags</th>
+                    <th class="px-6 py-4" scope="col">Duration</th>
+                    <th class="px-6 py-4" scope="col">Date</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+                {% for gen in generations %}
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                                {{ gen.title[0]|upper if gen.title else '?' }}
+                            </div>
+                            <div>
+                                <div class="font-medium text-white">{{ gen.title }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if gen.suno_id %}
+                        <span class="font-mono text-xs text-slate-500 bg-white/5 px-1.5 py-0.5 rounded">{{ gen.suno_id[:8] }}...</span>
+                        {% else %}
+                        <span class="text-xs text-slate-600">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        {% set st = gen.suno_status %}
+                        {% if st == 'complete' %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>Completed
+                        </span>
+                        {% elif st == 'error' %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-danger/10 text-danger border border-danger/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-danger"></span>Failed
+                        </span>
+                        {% elif st in ('submitted', 'streaming', 'queue') %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning border border-warning/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-warning animate-pulse"></span>Generating
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Pending
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 max-w-[300px]">
+                        <div class="flex gap-1 flex-wrap">
+                            {% for tag in gen.tags.split(',')[:4] %}
+                            <span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">{{ tag.strip() }}</span>
+                            {% endfor %}
+                            {% if gen.tags.split(',')|length > 4 %}
+                            <span class="text-[10px] text-slate-500">+{{ gen.tags.split(',')|length - 4 }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">{{ gen.duration|format_duration }}</td>
+                    <td class="px-6 py-4">{{ gen.created_at|timeago }}</td>
+                </tr>
+                {% endfor %}
+                {% if not generations %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-slate-500">
+                        <span class="material-icons text-4xl mb-2 block">music_off</span>
+                        No songs yet. Upload an Excel file to get started!
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block bottom_bar %}
+<div class="fixed bottom-0 left-0 w-full glass-panel border-t border-white/10 p-4 z-40">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="text-sm text-slate-400 hidden md:block" id="bottom-status">
+            <span class="text-white font-medium">Ready</span> to process new queue.
+        </div>
+        <div class="flex w-full md:w-auto gap-4">
+            <a href="/upload" class="flex-1 md:flex-none items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-surface-dark border border-primary/50 text-primary hover:bg-primary/10 hover:border-primary transition-all font-medium text-sm flex">
+                <span class="material-icons text-lg">upload_file</span>
+                Upload Excel
+            </a>
+            <button onclick="startGeneration()" class="flex-1 md:flex-none items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20 transition-all font-medium text-sm flex">
+                <span class="material-icons text-lg">play_arrow</span>
+                Start Generation
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function startGeneration() {
+        try {
+            const resp = await fetch('/api/start-generation', { method: 'POST' });
+            const data = await resp.json();
+            showToast(data.message, data.count > 0 ? 'success' : 'info');
+            if (data.count > 0) {
+                startGlobalPoll();
+            }
+        } catch (e) {
+            showToast('Failed to start generation', 'error');
+        }
+    }
+
+    // WebSocket: auto-refresh dashboard on generation updates
+    // Global polling in base.html handles poll-status calls.
+    // Here we just listen for WS events to refresh the dashboard UI.
+    wsOn('generation_update', function(msg) {
+        if (msg.status === 'complete' || msg.status === 'error') {
+            setTimeout(function() { location.reload(); }, 1500);
+        }
+    });
+
+    {% if stats.processing_gens > 0 %}
+    // Show processing indicator
+    (function() {
+        const el = document.getElementById('bottom-status');
+        if (el) {
+            el.textContent = '';
+            const span = document.createElement('span');
+            span.className = 'text-warning font-medium animate-pulse';
+            span.textContent = 'Processing';
+            el.appendChild(span);
+            el.appendChild(document.createTextNode(' songs in queue...'));
+        }
+        startGlobalPoll();  // Ensure global polling is running
+    })();
+    {% endif %}
+</script>
+{% endblock %}

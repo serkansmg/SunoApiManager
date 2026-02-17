@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+{% block title %}Settings - Suno Manager{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h2 class="text-2xl font-bold text-white mb-1">Configuration</h2>
+    <p class="text-slate-400">Manage your API connections, generation preferences, and file handling.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Left Column -->
+    <div class="space-y-8">
+        <!-- API Configuration -->
+        <div class="p-6 rounded-xl bg-surface-dark border border-white/5">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-primary">settings</span>
+                    <h3 class="text-lg font-bold text-white">API Configuration</h3>
+                </div>
+                <span id="conn-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ 'bg-green-500/10 text-green-400 border border-green-500/20' if api_online else 'bg-red-500/10 text-red-400 border border-red-500/20' }}">
+                    <span class="w-1.5 h-1.5 rounded-full {{ 'bg-green-500' if api_online else 'bg-red-500' }}"></span>
+                    {{ 'Connected' if api_online else 'Disconnected' }}
+                </span>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5">Suno Cookie</label>
+                    <div class="relative">
+                        <input id="suno_cookie" type="password" placeholder="Loading..." class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 placeholder-slate-500 font-mono"/>
+                        <button onclick="toggleCookieVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">
+                            <span id="cookie-eye" class="material-icons text-lg">visibility_off</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">This cookie is used to authenticate requests to the Suno API.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="testConnection()" class="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-600 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-2">
+                        <span class="material-icons text-sm">wifi_tethering</span>
+                        Test Connection
+                    </button>
+                    <button onclick="saveCookie()" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2">
+                        <span class="material-icons text-sm">vpn_key</span>
+                        Save Cookie
+                    </button>
+                    <button onclick="toggleCookieHelp()" class="px-4 py-2 text-sm font-medium text-amber-400 border border-amber-500/30 rounded-lg hover:bg-amber-500/10 transition-colors flex items-center gap-2">
+                        <span class="material-icons text-sm">help_outline</span>
+                        How to Get Cookie
+                    </button>
+                </div>
+
+                <!-- Cookie Help Panel -->
+                <div id="cookie-help-panel" class="hidden mt-4 p-5 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-icons text-amber-400">cookie</span>
+                        <h4 class="text-base font-bold text-amber-300">How to Obtain Your Suno Cookie</h4>
+                        <button onclick="toggleCookieHelp()" class="ml-auto text-slate-500 hover:text-white transition-colors">
+                            <span class="material-icons text-lg">close</span>
+                        </button>
+                    </div>
+                    <ol class="space-y-3 text-sm text-slate-300 list-none">
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">1</span>
+                            <span>Head over to <a href="https://suno.com/create" target="_blank" class="text-primary hover:underline font-medium">suno.com/create</a> and open the browser <strong class="text-white">Developer Tools</strong> (F12 or Ctrl+Shift+I).</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">2</span>
+                            <span>Go to the <strong class="text-white">Network</strong> tab in DevTools.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">3</span>
+                            <span>Refresh the page and look for a request to <code class="px-1.5 py-0.5 bg-white/10 rounded text-xs font-mono text-amber-300">client?_is_native=</code> in the Network tab.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">4</span>
+                            <span>Click on that request and go to the <strong class="text-white">Headers</strong> tab.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">5</span>
+                            <span>Scroll down to <strong class="text-white">Request Headers</strong> and find the <code class="px-1.5 py-0.5 bg-white/10 rounded text-xs font-mono text-amber-300">Cookie</code> header.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">6</span>
+                            <span><strong class="text-white">Copy the entire cookie value</strong> (right-click &rarr; Copy Value).</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">7</span>
+                            <span>Paste it into the <strong class="text-white">Suno Cookie</strong> field above and click <strong class="text-white">Save Cookie</strong>.</span>
+                        </li>
+                    </ol>
+                    <div class="mt-5 pt-4 border-t border-amber-500/10">
+                        <button onclick="toggleCookieDemo()" class="text-sm text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5 font-medium">
+                            <span class="material-icons text-sm" id="demo-toggle-icon">play_circle</span>
+                            <span id="demo-toggle-text">Show Demo</span>
+                        </button>
+                        <div id="cookie-demo-container" class="hidden mt-3 rounded-lg overflow-hidden border border-white/10">
+                            <img id="cookie-demo-gif" alt="Cookie extraction demo" class="w-full" />
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/15">
+                        <p class="text-xs text-amber-300/80 flex items-start gap-2">
+                            <span class="material-icons text-sm mt-0.5">info</span>
+                            <span>Cookies expire periodically. If you get authentication errors, repeat these steps to get a fresh cookie.</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CAPTCHA Status -->
+        <div class="p-6 rounded-xl bg-surface-dark border border-white/5">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-primary">verified_user</span>
+                    <h3 class="text-lg font-bold text-white">CAPTCHA Status</h3>
+                </div>
+                <span id="captcha-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                    Checking...
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Suno may require CAPTCHA verification for song generation. If required, a browser window will open for you to solve the challenge.</p>
+            <div class="flex gap-3">
+                <button id="captcha-check-btn" onclick="checkCaptcha()" class="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-600 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-2">
+                    <span class="material-icons text-sm">refresh</span>
+                    Check Status
+                </button>
+                <button id="captcha-solve-btn" onclick="solveCaptcha()" class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-500 transition-colors flex items-center gap-2 hidden">
+                    <span class="material-icons text-sm">smart_toy</span>
+                    Solve CAPTCHA
+                </button>
+            </div>
+        </div>
+
+        <!-- Generation Settings -->
+        <div class="p-6 rounded-xl bg-surface-dark border border-white/5">
+            <div class="flex items-center gap-2 mb-6">
+                <span class="material-icons text-primary">tune</span>
+                <h3 class="text-lg font-bold text-white">Generation Settings</h3>
+            </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5">Default Model</label>
+                    <select id="default_model" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none cursor-pointer">
+                        {% set current_model = settings.get('default_model', 'chirp-crow') %}
+                        <option value="{{ current_model }}" selected>{{ current_model }} (loading...)</option>
+                    </select>
+                    <p class="text-xs text-slate-500 mt-1" id="model-hint">Loading available models...</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1.5">Min Duration Filter (s)</label>
+                        <div class="flex items-center">
+                            <input id="min_duration_filter" type="number" value="{{ settings.get('min_duration_filter', '180') }}" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"/>
+                            <span class="text-xs text-slate-500 ml-2">sec</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1.5">Polling Interval (ms)</label>
+                        <div class="flex items-center">
+                            <input id="polling_interval" type="number" value="{{ settings.get('polling_interval', '10') }}" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"/>
+                            <span class="text-xs text-slate-500 ml-2">sec</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1.5">Batch Size</label>
+                        <input id="batch_size" type="number" min="1" max="50" value="{{ settings.get('batch_size', '5') }}" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"/>
+                        <p class="text-xs text-slate-500 mt-1">Songs per batch before pausing.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1.5">Batch Delay</label>
+                        <div class="flex items-center">
+                            <input id="batch_delay" type="number" min="5" max="300" value="{{ settings.get('batch_delay', '30') }}" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"/>
+                            <span class="text-xs text-slate-500 ml-2">sec</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Wait time between batches.</p>
+                    </div>
+                </div>
+                <div class="space-y-3 pt-2">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-white">Auto-download</div>
+                            <div class="text-xs text-slate-400">Automatically download songs when generation completes.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input id="auto_download" type="checkbox" class="sr-only peer" {{ 'checked' if settings.get('auto_download', 'true') == 'true' }}/>
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-white">Auto-analyze Silence</div>
+                            <div class="text-xs text-slate-400">Check generated audio for silent gaps before saving.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input id="auto_analyze_silence" type="checkbox" class="sr-only peer" {{ 'checked' if settings.get('auto_analyze_silence', 'true') == 'true' }}/>
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="space-y-8">
+        <!-- Download Settings -->
+        <div class="p-6 rounded-xl bg-surface-dark border border-white/5">
+            <div class="flex items-center gap-2 mb-6">
+                <span class="material-icons text-primary">folder</span>
+                <h3 class="text-lg font-bold text-white">Download Settings</h3>
+            </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5">Download Directory</label>
+                    <input id="download_dir" type="text" value="{{ settings.get('download_dir', './downloads') }}" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"/>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5">Download Format</label>
+                    <select id="download_format" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none cursor-pointer">
+                        {% set current_format = settings.get('download_format', 'mp3') %}
+                        <option value="mp3" {{ 'selected' if current_format == 'mp3' }}>MP3 only</option>
+                        <option value="wav" {{ 'selected' if current_format == 'wav' }}>WAV only (Pro)</option>
+                        <option value="both" {{ 'selected' if current_format == 'both' }}>Both MP3 & WAV</option>
+                    </select>
+                    <p class="text-xs text-slate-500 mt-1">WAV download requires Suno Pro subscription.</p>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5">Silence Threshold (dB)</label>
+                    <div class="flex items-center">
+                        <input id="silence_threshold" type="number" value="{{ settings.get('silence_threshold', '-40') }}" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"/>
+                        <span class="text-xs text-slate-500 ml-2">dB</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">Threshold to consider audio as silence.</p>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5">Min Silence Length (ms)</label>
+                    <div class="flex items-center">
+                        <input id="min_silence_length" type="number" value="{{ settings.get('min_silence_length', '1000') }}" class="w-full bg-background-dark/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"/>
+                        <span class="text-xs text-slate-500 ml-2">ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Button -->
+<div class="mt-8 flex justify-end">
+    <button onclick="saveAllSettings()" class="px-8 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium shadow-lg shadow-primary/25 transition-all flex items-center gap-2">
+        <span class="material-icons">save</span>
+        Save All Settings
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function testConnection() {
+        showToast('Testing connection...', 'info');
+        try {
+            const resp = await fetch('/api/test-connection', { method: 'POST' });
+            const data = await resp.json();
+            if (data.status === 'connected') {
+                showToast('Connected! Credits: ' + (data.credits.credits_left || '?'), 'success');
+            } else {
+                showToast('Connection failed: ' + (data.error || 'Unknown error'), 'error');
+            }
+        } catch (e) {
+            showToast('Connection test failed', 'error');
+        }
+    }
+
+    // ─── Cookie Help ───
+    function toggleCookieHelp() {
+        var panel = document.getElementById('cookie-help-panel');
+        panel.classList.toggle('hidden');
+        if (panel.classList.contains('hidden')) {
+            // Close demo too when closing panel
+            var demo = document.getElementById('cookie-demo-container');
+            demo.classList.add('hidden');
+            document.getElementById('demo-toggle-icon').textContent = 'play_circle';
+            document.getElementById('demo-toggle-text').textContent = 'Show Demo';
+            var gif = document.getElementById('cookie-demo-gif');
+            gif.removeAttribute('src');
+        }
+    }
+
+    function toggleCookieDemo() {
+        var container = document.getElementById('cookie-demo-container');
+        var icon = document.getElementById('demo-toggle-icon');
+        var text = document.getElementById('demo-toggle-text');
+        var gif = document.getElementById('cookie-demo-gif');
+        if (container.classList.contains('hidden')) {
+            container.classList.remove('hidden');
+            gif.src = '/static/get-cookie-demo.gif';
+            icon.textContent = 'pause_circle';
+            text.textContent = 'Hide Demo';
+        } else {
+            container.classList.add('hidden');
+            gif.removeAttribute('src');
+            icon.textContent = 'play_circle';
+            text.textContent = 'Show Demo';
+        }
+    }
+
+    // ─── Cookie Management ───
+    async function loadCookie() {
+        try {
+            const resp = await fetch('/api/cookie');
+            const data = await resp.json();
+            const input = document.getElementById('suno_cookie');
+            if (data.cookie !== undefined) {
+                input.value = data.cookie || '';
+                input.placeholder = data.cookie ? 'Cookie loaded (' + data.length + ' chars)' : 'No cookie set';
+            } else {
+                input.placeholder = data.error || 'Error loading cookie';
+            }
+        } catch (e) {
+            document.getElementById('suno_cookie').placeholder = 'Failed to load cookie';
+        }
+    }
+
+    function toggleCookieVisibility() {
+        const input = document.getElementById('suno_cookie');
+        const icon = document.getElementById('cookie-eye');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.textContent = 'visibility';
+        } else {
+            input.type = 'password';
+            icon.textContent = 'visibility_off';
+        }
+    }
+
+    async function saveCookie() {
+        const cookie = document.getElementById('suno_cookie').value.trim();
+        if (!cookie) {
+            showToast('Please enter a cookie value', 'error');
+            return;
+        }
+        try {
+            const resp = await fetch('/api/cookie', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cookie: cookie }),
+            });
+            const data = await resp.json();
+            if (data.message) {
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.error || 'Failed to save cookie', 'error');
+            }
+        } catch (e) {
+            showToast('Failed to save cookie', 'error');
+        }
+    }
+
+    // Load cookie on page load
+    loadCookie();
+
+    // ─── Dynamic Model Loading ───
+    async function loadModels() {
+        var select = document.getElementById('default_model');
+        var hint = document.getElementById('model-hint');
+        var currentModel = '{{ settings.get("default_model", "chirp-crow") }}';
+        try {
+            var resp = await fetch('/suno/models');
+            var models = await resp.json();
+            if (models && models.length > 0) {
+                // Clear existing options using DOM methods
+                while (select.firstChild) select.removeChild(select.firstChild);
+                models.forEach(function(m) {
+                    var key = m.external_key;
+                    var opt = document.createElement('option');
+                    opt.value = key;
+                    var label = m.name ? m.name + ' (' + key + ')' : key;
+                    if (m.badges && m.badges.length) label += ' [' + m.badges.join(', ') + ']';
+                    opt.textContent = label;
+                    if (key === currentModel) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                hint.textContent = models.length + ' models available';
+            } else {
+                hint.textContent = 'No models returned, using current value';
+            }
+        } catch (e) {
+            hint.textContent = 'Could not load models from API';
+        }
+    }
+    loadModels();
+
+    // ─── CAPTCHA ───
+    async function checkCaptcha() {
+        var badge = document.getElementById('captcha-badge');
+        var solveBtn = document.getElementById('captcha-solve-btn');
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></span>Checking...';
+        try {
+            var resp = await fetch('/api/captcha/status');
+            var data = await resp.json();
+            if (data.has_valid_token) {
+                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>Token Ready';
+                solveBtn.classList.add('hidden');
+            } else if (data.is_solving) {
+                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>Solving...';
+                solveBtn.classList.add('hidden');
+            } else if (data.required) {
+                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>Required';
+                solveBtn.classList.remove('hidden');
+            } else {
+                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>Not Required';
+                solveBtn.classList.add('hidden');
+            }
+        } catch (e) {
+            badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20';
+            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Check Failed';
+        }
+    }
+
+    async function solveCaptcha() {
+        var solveBtn = document.getElementById('captcha-solve-btn');
+        solveBtn.disabled = true;
+        solveBtn.innerHTML = '<span class="material-icons text-sm animate-spin">sync</span>Opening Browser...';
+        showToast('Opening browser for CAPTCHA. Please solve the challenge in the new window.', 'info');
+        try {
+            var resp = await fetch('/api/captcha/solve', { method: 'POST' });
+            var data = await resp.json();
+            showToast(data.message, 'info');
+        } catch (e) {
+            showToast('Failed to start CAPTCHA solver', 'error');
+            solveBtn.disabled = false;
+            solveBtn.innerHTML = '<span class="material-icons text-sm">smart_toy</span>Solve CAPTCHA';
+        }
+    }
+
+    // Listen for CAPTCHA WebSocket updates
+    wsOn('captcha_update', function(msg) {
+        if (msg.status === 'solved') {
+            showToast(msg.message, 'success');
+            checkCaptcha();
+        } else if (msg.status === 'failed' || msg.status === 'error') {
+            showToast(msg.message, 'error');
+            checkCaptcha();
+        }
+        var solveBtn = document.getElementById('captcha-solve-btn');
+        solveBtn.disabled = false;
+        solveBtn.innerHTML = '<span class="material-icons text-sm">smart_toy</span>Solve CAPTCHA';
+    });
+
+    // Check CAPTCHA status on page load
+    checkCaptcha();
+
+    // ─── Settings ───
+    async function saveAllSettings() {
+        const settings = {
+            default_model: document.getElementById('default_model').value,
+            min_duration_filter: document.getElementById('min_duration_filter').value,
+            polling_interval: document.getElementById('polling_interval').value,
+            batch_size: document.getElementById('batch_size').value,
+            batch_delay: document.getElementById('batch_delay').value,
+            auto_download: document.getElementById('auto_download').checked ? 'true' : 'false',
+            auto_analyze_silence: document.getElementById('auto_analyze_silence').checked ? 'true' : 'false',
+            download_dir: document.getElementById('download_dir').value,
+            download_format: document.getElementById('download_format').value,
+            silence_threshold: document.getElementById('silence_threshold').value,
+            min_silence_length: document.getElementById('min_silence_length').value,
+        };
+        try {
+            const resp = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings),
+            });
+            const data = await resp.json();
+            showToast('Settings saved!', 'success');
+        } catch (e) {
+            showToast('Failed to save settings', 'error');
+        }
+    }
+</script>
+{% endblock %}

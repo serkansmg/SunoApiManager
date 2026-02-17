@@ -1,0 +1,31 @@
+# Suno Manager Configuration
+
+# Suno API connection
+suno_api:
+  # Suno session cookie — __client cookie value from browser
+  cookie: ""
+
+# Song generation settings
+generation:
+  default_model: "chirp-crow"
+  min_duration_filter: 180
+  polling_interval: 10
+  auto_download: true
+  auto_analyze_silence: true
+  batch_size: 5                       # Songs per batch (to avoid rate limits)
+  batch_delay: 30                     # Seconds to wait between batches
+
+# Download settings
+download:
+  directory: "./downloads"
+  format: "wav"
+
+# Silence analysis settings
+silence_analysis:
+  threshold: -40
+  min_length: 1000
+
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 8080
