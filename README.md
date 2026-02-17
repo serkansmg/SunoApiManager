@@ -126,6 +126,8 @@ docker compose up -d
 ```
 
 > Requires a `config.yaml` in the project root. See [Configuration](#configuration) below.
+>
+> For detailed Docker setup (volumes, ports, useful commands): [Docker Hub — smgteknik/sunoapimanager](https://hub.docker.com/r/smgteknik/sunoapimanager)
 
 ## Configuration
 
