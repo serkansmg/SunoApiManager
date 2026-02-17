@@ -100,9 +100,6 @@ suno_api:
   # See the "Getting the Cookie" section below
   cookie: "__client=eyJ..."
 
-  # (optional) Path to legacy suno-api .env file — for backward compatibility
-  # env_path: "/path/to/suno-api/.env"
-
 # Song generation settings
 generation:
   default_model: "chirp-crow"       # Default model (can be changed from Settings page)
